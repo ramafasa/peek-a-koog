@@ -1,5 +1,6 @@
 package dev.peekakoog.app
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -28,7 +30,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -55,6 +59,7 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "Peek-a-Koog",
+        icon = BitmapPainter(KodeeLogo.image),
         state = rememberWindowState(width = 1400.dp, height = 860.dp),
     ) {
         MaterialTheme(colorScheme = darkColorScheme()) {
@@ -137,7 +142,10 @@ private fun PeekAKoogScreen(house: House) {
 
     Row(Modifier.fillMaxSize().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(Modifier.weight(2.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("🙈 Peek-a-Koog", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Image(KodeeLogo.image, contentDescription = "Kodee covering its eyes", modifier = Modifier.size(56.dp))
+                Text("Peek-a-Koog", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            }
             Text(
                 when {
                     started -> "Koog the detective is looking for Kodee…"

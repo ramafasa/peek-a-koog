@@ -1,4 +1,6 @@
-# 🙈 Peek-a-Koog
+<img src="app/src/main/resources/kodee/kodee-peekaboo.svg" width="96" alt="Kodee covering its eyes">
+
+# Peek-a-Koog
 
 A Kotlin AI agent learns to play hide-and-seek, one failure at a time.
 
@@ -64,4 +66,6 @@ That journal is the script of the talk.
 ## Credits
 
 Kodee by JetBrains s.r.o. is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-([Kotlin brand assets](https://kotlinlang.org/docs/kotlin-brand-assets.html)). The detective and the furniture are drawn in code.
+([Kotlin brand assets](https://kotlinlang.org/docs/kotlin-brand-assets.html)).
+The logo (`kodee-peekaboo.svg`) is adapted from the official Kodee artwork: arms redrawn to cover the eyes, eyes closed.
+The detective and the furniture are drawn in code.

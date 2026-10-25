@@ -8,7 +8,9 @@ import androidx.compose.ui.use
 import dev.peekakoog.engine.GameEvent
 import dev.peekakoog.engine.Houses
 import kotlinx.coroutines.runBlocking
+import androidx.compose.ui.graphics.asSkiaBitmap
 import org.jetbrains.skia.EncodedImageFormat
+import org.jetbrains.skia.Image
 import java.io.File
 import kotlin.test.Test
 
@@ -33,6 +35,12 @@ class HouseSnapshotTest {
             val image = scene.render()
             File(outDir, "$name.png").writeBytes(image.encodeToData(EncodedImageFormat.PNG)!!.bytes)
         }
+    }
+
+    @Test
+    fun `render the logo`() {
+        val bitmap = KodeeLogo.image.asSkiaBitmap()
+        File(outDir, "0-logo.png").writeBytes(Image.makeFromBitmap(bitmap).encodeToData(EncodedImageFormat.PNG)!!.bytes)
     }
 
     @Test

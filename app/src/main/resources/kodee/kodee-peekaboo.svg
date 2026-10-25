@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kodee covering its eyes, for Peek-a-Koog.
+  Adapted from the official Kodee asset "Kodee-regular" (body, legs, face and mouth unchanged; arms redrawn, eyes closed).
+  Kodee by JetBrains s.r.o. is licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150">
+  <!-- Body -->
+  <path fill="#7F52FF" d="M39,89.8l68.2-4.8c5.3-0.4,9.3-5,9-10.3l-3.8-54c-0.6-8.6-10.8-12.9-17.4-7.2L71.7,33.9
+    c-1.3,1.1-3.2,1.3-4.7,0.3l-25.9-17c-7.3-4.7-16.8,0.9-16.2,9.6l3.8,53.9C29.1,86.1,33.7,90.1,39,89.8z"/>
+  <!-- Legs -->
+  <path fill="#7F52FF" d="M52.5,139.1h-8.7c-2.5,0-4.6-2.1-4.6-4.6s2.1-4.6,4.6-4.6h5.1l11.5-45.6c0.6-2.5,3.1-4,5.6-3.3
+    c2.5,0.6,4,3.1,3.3,5.6L57,135.6C56.5,137.6,54.6,139.1,52.5,139.1z"/>
+  <path fill="#7F52FF" d="M97.2,139.1h-8.7c-2.1,0-4-1.4-4.5-3.5L71.7,86.5c-0.6-2.5,0.9-5,3.3-5.6c2.5-0.6,5,0.9,5.6,3.3l11.5,45.6
+    h5.1c2.5,0,4.6,2.1,4.6,4.6S99.8,139.1,97.2,139.1z"/>
+  <!-- Face screen -->
+  <path fill="#000000" d="M105.6,80.3l-65.7,4.6c-3.3,0.2-6.2-2.3-6.5-5.6l-2.1-30.7c-0.2-3.3,2.3-6.2,5.6-6.5l65.7-4.6c3.3-0.2,6.2,2.3,6.5,5.6
+    l2.1,30.7C111.5,77.1,109,80,105.6,80.3z"/>
+  <!-- Closed eyes -->
+  <path fill="none" stroke="#FFFFFF" stroke-width="4.6" stroke-linecap="round" d="M46,58.5 A9.5,9.5 0 0 0 65,57.2"/>
+  <path fill="none" stroke="#FFFFFF" stroke-width="4.6" stroke-linecap="round" d="M77.5,56.3 A9.5,9.5 0 0 0 96.5,55"/>
+  <!-- Mouth -->
+  <path fill="#FFFFFF" d="M66.4,74.9c1.9,0.7,4,0.9,5.9,0.7c2-0.2,4-0.7,5.8-1.7c1.1-0.7,0.1-2.4-1-1.7c-2.9,1.8-7.1,2.1-10.2,0.8
+    c-0.5-0.2-1.1,0.2-1.2,0.7C65.5,74.2,65.9,74.7,66.4,74.9L66.4,74.9z"/>
+  <!-- Arms raised, paws over the eyes -->
+  <path fill="none" stroke="#7F52FF" stroke-width="9.2" stroke-linecap="round" stroke-linejoin="round"
+        d="M32,72 C18,77 11,92 23,94 C35,96 47,77 56,61.5"/>
+  <path fill="none" stroke="#7F52FF" stroke-width="9.2" stroke-linecap="round" stroke-linejoin="round"
+        d="M113,70 C127,74 135,90 123,92 C111,94 97,75 87.5,59.5"/>
+  <circle fill="#7F52FF" cx="56" cy="61.5" r="9"/>
+  <circle fill="#7F52FF" cx="87.5" cy="59.5" r="9"/>
+</svg>

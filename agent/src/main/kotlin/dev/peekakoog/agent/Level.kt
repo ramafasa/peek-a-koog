@@ -52,7 +52,7 @@ suspend fun seek(level: Level, game: Game, llm: Llm): SeekResult {
             toolRegistry = ToolRegistry.builder().tools(SeekerTools(game)).build(),
         )
     }
-    val answer = agent.run("Find the toy!")
+    val answer = agent.run("Find Kodee!")
     return SeekResult(answer, game.claim(parseClaim(answer)))
 }
 
@@ -63,10 +63,10 @@ private fun basePrompt(game: Game): String {
         "- ${room.id} (doors to: ${house.doorsFrom(room.id).joinToString(", ")}): $spots"
     }
     return """
-        You are playing hide-and-seek. Someone hid a toy in one of the hiding spots of this house:
+        You are playing hide-and-seek. Someone hid Kodee, the Kotlin mascot, in one of the hiding spots of this house:
         $layout
         You start in the ${game.currentRoomId}.
-        Find the toy. End your answer with a line `FOUND: <spot-id>`.
+        Find Kodee. End your answer with a line `FOUND: <spot-id>`.
     """.trimIndent()
 }
 

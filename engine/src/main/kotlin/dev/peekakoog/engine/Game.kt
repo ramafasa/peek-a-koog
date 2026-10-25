@@ -16,7 +16,7 @@ sealed interface GameEvent {
 
 /**
  * The rules of hide-and-seek. Pure, deterministic Kotlin: the engine — never the LLM —
- * knows where the toy is and decides whether the seeker found it.
+ * knows where Kodee is and decides whether the seeker found it.
  */
 class Game(
     val house: House,
@@ -86,11 +86,11 @@ class Game(
         spendMove()
         if (found) status = Status.FOUND
         emit(GameEvent.Peeked(spotId, found))
-        return if (found) "🎉 Found it! The toy was ${spot.name.replaceFirstChar(Char::lowercase)}."
+        return if (found) "🎉 Found Kodee! It was ${spot.name.replaceFirstChar(Char::lowercase)}."
         else "Nothing ${spot.name.replaceFirstChar(Char::lowercase)}. Moves left: $movesLeft."
     }
 
-    /** Listen for the toy: HOT in this room, WARM one door away, COLD otherwise. Costs one move. */
+    /** Listen for Kodee: HOT in this room, WARM one door away, COLD otherwise. Costs one move. */
     @Synchronized
     fun listen(): String {
         rejectIfOver("listen")?.let { return it }
@@ -105,7 +105,7 @@ class Game(
     }
 
     /**
-     * Record where the seeker *says* the toy is. The engine checks the claim against the truth,
+     * Record where the seeker *says* Kodee is. The engine checks the claim against the truth,
      * so a confident answer without looking is exposed as a guess.
      */
     @Synchronized
@@ -125,7 +125,7 @@ class Game(
     }
 
     private fun rejectIfOver(action: String): String? = when (status) {
-        Status.FOUND -> reject(action, "The game is over: the toy has already been found.")
+        Status.FOUND -> reject(action, "The game is over: Kodee has already been found.")
         Status.OUT_OF_MOVES -> reject(action, "The game is over: no moves left.")
         Status.SEEKING -> null
     }

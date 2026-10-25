@@ -11,7 +11,7 @@ class GameTest {
         Game(Houses.cozy, hiddenSpotId, moveBudget = moveBudget)
 
     @Test
-    fun `finds the toy by walking and peeking`() {
+    fun `finds Kodee by walking and peeking`() {
         val game = game()
         game.move("kitchen")
         game.peek("fridge")
@@ -36,7 +36,7 @@ class GameTest {
     }
 
     @Test
-    fun `listening tells how far the toy is`() {
+    fun `listening tells how far Kodee is`() {
         val game = game(hiddenSpotId = "bathtub")
         assertTrue("COLD" in game.listen())
         game.move("kitchen")

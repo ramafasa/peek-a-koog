@@ -28,6 +28,6 @@ class SeekerTools(private val game: Game) : ToolSet {
     ): String = game.peek(spotId)
 
     @Tool
-    @LLMDescription("Listen for the toy: HOT means this room, WARM one door away, COLD further. Costs one move.")
+    @LLMDescription("Listen for Kodee: HOT means this room, WARM one door away, COLD further. Costs one move.")
     fun listen(): String = game.listen()
 }

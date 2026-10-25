@@ -32,8 +32,11 @@ class Director(private val house: House, private val plan: FloorPlan, private va
     var foundSpotId by mutableStateOf<String?>(null)
         private set
 
+    private var roomId = startRoomId
+
     suspend fun reset() {
         position.snapTo(plan.roomCenter(startRoomId))
+        roomId = startRoomId
         pose = Pose.IDLE
         facingLeft = false
         bubble = null
@@ -45,6 +48,7 @@ class Director(private val house: House, private val plan: FloorPlan, private va
             is GameEvent.Moved -> {
                 bubble = null
                 walk(listOf(plan.roomCenter(event.from), plan.door(event.from, event.to), plan.roomCenter(event.to)))
+                roomId = event.to
             }
             is GameEvent.Looked -> {
                 pose = Pose.IDLE
@@ -93,11 +97,29 @@ class Director(private val house: House, private val plan: FloorPlan, private va
                 pose = Pose.IDLE
             }
             is GameEvent.Claimed -> {
+                val claimed = event.spotId?.let(house::spot)
+                if (claimed != null && !event.everPeekedThere) {
+                    // The agent names a spot it never looked at: act out the confident march there.
+                    // Nothing is checked on the way, so no ✗ or ✓ appears.
+                    bubble = Bubble("I know where Kodee is!")
+                    walkToRoom(claimed.roomId)
+                    walk(listOf(plan.layout(claimed.id).stand))
+                    facingLeft = plan.layout(claimed.id).rect.center.x < position.value.x
+                }
                 pose = if (event.spotId == null) Pose.CONFUSED else Pose.CELEBRATING
                 val where = event.spotId?.let { house.spot(it)?.name?.replaceFirstChar(Char::lowercase) ?: it }
                 bubble = Bubble(if (where == null) "I give up 🤷" else "Kodee is $where!")
                 delay(1500)
             }
+        }
+    }
+
+    /** Walks door by door along a shortest route to [target]. */
+    private suspend fun walkToRoom(target: String) {
+        while (roomId != target) {
+            val next = house.doorsFrom(roomId).minBy { house.distance(it, target) }
+            walk(listOf(plan.roomCenter(roomId), plan.door(roomId, next), plan.roomCenter(next)))
+            roomId = next
         }
     }
 

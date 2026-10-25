@@ -21,3 +21,12 @@ compose.desktop {
         mainClass = "dev.peekakoog.app.MainKt"
     }
 }
+
+dependencies {
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
+    systemProperty("snapshots.dir", layout.buildDirectory.dir("snapshots").get().asFile.absolutePath)
+}

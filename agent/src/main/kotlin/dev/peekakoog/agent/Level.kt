@@ -10,6 +10,10 @@ import dev.peekakoog.engine.GameEvent
  * the previous one showed on stage. Tag the commit that finishes a level as `level-N`.
  */
 enum class Level(val title: String, val idea: String) {
+    BASELINE(
+        title = "Baseline · Plain Kotlin, no AI",
+        idea = "A hand-written search. The bar every agent has to beat.",
+    ),
     PROMPT_ONLY(
         title = "Level 0 · Just a prompt",
         idea = "No tools. The model can only talk about searching.",
@@ -30,7 +34,12 @@ data class SeekResult(val finalAnswer: String, val claim: GameEvent.Claimed)
 
 /** Runs one game with the seeker of the given level. */
 suspend fun seek(level: Level, game: Game, llm: Llm): SeekResult {
+    if (level == Level.BASELINE) {
+        val answer = baselineSeek(game)
+        return SeekResult(answer, game.claim(parseClaim(answer)))
+    }
     val agent = when (level) {
+        Level.BASELINE -> error("Handled above")
         Level.PROMPT_ONLY -> AIAgent(
             promptExecutor = llm.executor,
             llmModel = llm.model,

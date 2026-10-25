@@ -86,8 +86,8 @@ class Game(
         spendMove()
         if (found) status = Status.FOUND
         emit(GameEvent.Peeked(spotId, found))
-        return if (found) "🎉 Found it! The toy was ${spot.name.lowercase()}."
-        else "Nothing ${spot.name.lowercase()}. Moves left: $movesLeft."
+        return if (found) "🎉 Found it! The toy was ${spot.name.replaceFirstChar(Char::lowercase)}."
+        else "Nothing ${spot.name.replaceFirstChar(Char::lowercase)}. Moves left: $movesLeft."
     }
 
     /** Listen for the toy: HOT in this room, WARM one door away, COLD otherwise. Costs one move. */

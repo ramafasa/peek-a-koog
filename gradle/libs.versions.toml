@@ -1,0 +1,17 @@
+[versions]
+kotlin = "2.4.21"
+compose = "1.12.2"
+koog = "1.3.0"
+coroutines = "1.10.2"
+
+[libraries]
+koog-agents = { module = "ai.koog:koog-agents", version.ref = "koog" }
+koog-agents-test = { module = "ai.koog:agents-test", version.ref = "koog" }
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version = "2.0.17" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+compose = { id = "org.jetbrains.compose", version.ref = "compose" }

@@ -40,16 +40,6 @@ import kotlin.math.PI
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-private val FloorColors = mapOf(
-    "bedroom" to Color(0xFFEADCF8),
-    "kids-room" to Color(0xFFFFEBC2),
-    "bathroom" to Color(0xFFD5EEF5),
-    "living-room" to Color(0xFFF4E3D0),
-    "hall" to Color(0xFFE7E2DA),
-    "kitchen" to Color(0xFFDDEFD5),
-)
-private val WallColor = Color(0xFF2E2838)
-private val Doorway = Color(0xFFC9A37A)
 private val Highlight = Color(0xFF7F52FF)
 private val Ink = Color(0xFF2A2533)
 
@@ -60,7 +50,7 @@ private const val DETECTIVE_HEIGHT = 32f
 private const val KODEE_SIZE = 22f
 
 /** Maps house units to pixels for a canvas of a given size. */
-private class Projection(canvas: Size, plan: FloorPlan) {
+internal class Projection(canvas: Size, plan: FloorPlan) {
     val u = min(canvas.width / (plan.width + 2 * MARGIN), canvas.height / (plan.height + MARGIN_TOP + MARGIN))
     val origin = Offset(
         (canvas.width - plan.width * u) / 2,
@@ -109,20 +99,37 @@ fun HouseView(
         val proj = Projection(size, plan)
         val u = proj.u
 
-        drawRooms(house, plan, proj, textMeasurer)
+        val px: (Rect) -> Rect = proj::px
+        drawRoomShells(house, plan, px, u)
+        plan.decor.filter { it.decor.onFloor }.forEach { drawDecor(it.decor, proj.px(it.rect), u) }
+        drawWallCaps(house, plan, px, u, frontDoorRoomId = "hall")
 
-        plan.spotLayouts.forEach { layout ->
-            val r = proj.px(layout.rect)
-            if (layout.spotId == hoveredSpotId && canHide) {
-                drawRoundRect(Highlight.copy(alpha = 0.25f), r.inflate(2.5f * u).topLeft, r.inflate(2.5f * u).size, CornerRadius(3f * u))
+        val kodeePoppedOut = kodeeMood == KodeeMood.SURPRISED || kodeeMood == KodeeMood.EXCITED
+        val previewSpotId = hoveredSpotId.takeIf { canHide && it != hiddenSpotId }
+
+        // Painter's order: things lower on screen are in front.
+        val items = plan.spotLayouts.map { it.rect.bottom to it } + plan.decor.filterNot { it.decor.onFloor }.map { it.rect.bottom to it }
+        items.sortedBy { it.first }.forEach { (_, item) ->
+            when (item) {
+                is SpotLayout -> {
+                    // A hiding Kodee is drawn just before its furniture, so it peeks out from behind it.
+                    if (item.spotId == hiddenSpotId && !kodeePoppedOut) drawKodee(item, plan, kodeeMood, proj, alpha = 1f)
+                    if (item.spotId == previewSpotId) drawKodee(item, plan, KodeeMood.WELCOMING, proj, alpha = 0.7f)
+                    val r = proj.px(item.rect)
+                    if (item.spotId == hoveredSpotId && canHide) {
+                        drawRoundRect(Highlight.copy(alpha = 0.35f), r.inflate(2f * u).topLeft, r.inflate(2f * u).size, CornerRadius(3f * u))
+                    }
+                    drawFurniture(item.furniture, r, u)
+                }
+                is DecorLayout -> drawDecor(item.decor, proj.px(item.rect), u)
             }
-            drawFurniture(layout.furniture, r, u)
         }
+        drawRoomLabels(house, plan, px, u, textMeasurer)
 
         peeked.forEach { spotId ->
             val r = proj.px(plan.layout(spotId).rect)
             val found = spotId == director.foundSpotId
-            val center = r.topLeft + Offset(1f * u, 1f * u)
+            val center = r.topLeft + Offset(2f * u, 4f * u)
             drawCircle(if (found) Color(0xFF43A047) else Color(0xFFE53935), 3f * u, center)
             drawCircle(Color.White, 3f * u, center, style = Stroke(0.6f * u))
             val d = 1.3f * u
@@ -135,16 +142,11 @@ fun HouseView(
             }
         }
 
-        val kodeePoppedOut = kodeeMood == KodeeMood.SURPRISED || kodeeMood == KodeeMood.EXCITED
-        if (!kodeePoppedOut) hiddenSpotId?.let { drawKodee(plan.layout(it).rect, kodeeMood, proj, alpha = 1f) }
-        if (canHide && hoveredSpotId != null && hoveredSpotId != hiddenSpotId) {
-            drawKodee(plan.layout(hoveredSpotId).rect, KodeeMood.WELCOMING, proj, alpha = 0.6f)
-        }
 
         val feet = proj.px(director.position.value) + Offset(0f, DETECTIVE_HEIGHT * u * 0.25f)
         drawDetective(feet, DETECTIVE_HEIGHT * u, director.pose, director.facingLeft, phase)
         // Once found, Kodee pops out in front of the detective.
-        if (kodeePoppedOut) hiddenSpotId?.let { drawKodee(plan.layout(it).rect, kodeeMood, proj, alpha = 1f) }
+        if (kodeePoppedOut) hiddenSpotId?.let { drawKodee(plan.layout(it), plan, kodeeMood, proj, alpha = 1f) }
         director.bubble?.let { drawBubble(it, anchor = feet - Offset(0f, DETECTIVE_HEIGHT * u), u, textMeasurer) }
 
         if (canHide && hoveredSpotId != null) {
@@ -157,42 +159,19 @@ fun HouseView(
     }
 }
 
-private fun DrawScope.drawRooms(house: House, plan: FloorPlan, proj: Projection, textMeasurer: TextMeasurer) {
+private fun DrawScope.drawKodee(layout: SpotLayout, plan: FloorPlan, mood: KodeeMood, proj: Projection, alpha: Float) {
     val u = proj.u
-    house.rooms.forEach { room ->
-        val r = proj.px(plan.roomRect(room))
-        drawRect(FloorColors[room.id] ?: Color(0xFFEDEDED), r.topLeft, r.size)
-        val label = textMeasurer.measure(
-            room.name.uppercase(),
-            TextStyle(fontSize = (2.6f * u).toSp(), fontWeight = FontWeight.Bold, color = Ink.copy(alpha = 0.45f)),
-        )
-        drawText(label, topLeft = Offset(r.left + 3f * u, r.bottom - 3f * u - label.size.height))
-    }
-    // Walls: every room outline, so shared walls overlap into one.
-    house.rooms.forEach { room ->
-        val r = proj.px(plan.roomRect(room))
-        drawRect(WallColor, r.topLeft, r.size, style = Stroke(FloorPlan.WALL * u))
-    }
-    // Doorways cut through the walls.
-    house.rooms.forEach { room ->
-        house.doorsFrom(room.id).filter { it > room.id }.forEach { other ->
-            val c = proj.px(plan.door(room.id, other))
-            val half = FloorPlan.DOOR / 2 * u
-            val depth = FloorPlan.WALL * u
-            val size = if (plan.isVerticalDoor(room.id, other)) Size(depth + 1f, half * 2) else Size(half * 2, depth + 1f)
-            drawRect(Doorway, c - Offset(size.width / 2, size.height / 2), size)
-        }
-    }
-}
-
-private fun DrawScope.drawKodee(spotRect: Rect, mood: KodeeMood, proj: Projection, alpha: Float) {
-    val u = proj.u
-    val r = proj.px(spotRect)
+    val r = proj.px(layout.rect)
+    val room = proj.px(plan.roomRect(plan.roomOf(layout.spotId)))
+    // Kodee appears on the side of the furniture that faces the middle of the room.
+    val towardsLeft = r.center.x > room.center.x
+    fun beside(outwards: Float) = if (towardsLeft) r.left - outwards else r.right + outwards
     val (center, sizeUnits) = when (mood) {
-        // Popped out of the hiding spot, a little bigger.
-        KodeeMood.SURPRISED, KodeeMood.EXCITED -> Offset(r.center.x, r.top - 4f * u) to KODEE_SIZE * 1.4f
-        // Peeking out from a corner of the furniture.
-        else -> Offset(r.right - 2f * u, r.top + 2f * u) to KODEE_SIZE
+        // Jumped out next to the hiding spot, a little bigger, so it never covers the detective.
+        KodeeMood.SURPRISED, KodeeMood.EXCITED ->
+            Offset(beside(KODEE_SIZE * 1.4f * u * 0.45f), r.top + r.height * 0.35f) to KODEE_SIZE * 1.4f
+        // Peeking out from behind the furniture.
+        else -> Offset(beside(KODEE_SIZE * u * 0.22f), r.top + r.height * 0.45f) to KODEE_SIZE
     }
     val side = (sizeUnits * u).roundToInt()
     val image = mood.image

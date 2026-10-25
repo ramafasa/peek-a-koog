@@ -5,25 +5,45 @@ import androidx.compose.ui.geometry.Rect
 import dev.peekakoog.engine.House
 import dev.peekakoog.engine.Room
 
+/** Furniture that hides a spot. */
 enum class Furniture {
     BED, WARDROBE, CURTAIN, TOY_BOX, BUNK_BED, TENT, BATHTUB, LAUNDRY, SINK,
     SOFA, TV, BOOKSHELF, COAT_RACK, SHOE_CABINET, FRIDGE, OVEN, PANTRY, TABLE,
 }
 
+/** Things that only make a room recognisable. Nothing can hide in them. */
+enum class Decor(val onFloor: Boolean = false) {
+    RUG(onFloor = true), ROUND_RUG(onFloor = true), RUNNER(onFloor = true), BATH_MAT(onFloor = true), DOORMAT(onFloor = true),
+    NIGHTSTAND, TOILET, PLANT, BALL, BLOCKS, COUNTER_SINK,
+    POSTER, PICTURE, CLOCK, TOWEL, KITCHEN_WINDOW,
+}
+
 /** Where a hiding spot's furniture stands and where the detective stops to peek at it. */
 data class SpotLayout(val spotId: String, val furniture: Furniture, val rect: Rect, val stand: Offset)
 
+data class DecorLayout(val decor: Decor, val rect: Rect)
+
 /**
- * Geometry of the top-down floor plan, in "house units". Every room is [ROOM_W] × [ROOM_H] and sits at
- * its engine `col`/`row`. This is pure presentation: the rules live in the engine.
+ * Geometry of the floor plan in "house units", drawn in a 3/4 top-down view: the floor is seen from above and the
+ * back wall of every room shows its face ([WALL_FACE] units tall). Every room is [ROOM_W] × [ROOM_H] and sits at its
+ * engine `col`/`row`. This is pure presentation: the rules live in the engine.
  */
-class FloorPlan(private val house: House, localLayouts: List<SpotLayout>) {
+class FloorPlan(
+    private val house: House,
+    spots: List<SpotLayout>,
+    decor: Map<String, List<DecorLayout>>,
+) {
     val width = house.rooms.maxOf { it.col + 1 } * ROOM_W
     val height = house.rooms.maxOf { it.row + 1 } * ROOM_H
 
-    private val layouts: Map<String, SpotLayout> = localLayouts.associate { local ->
+    private val layouts: Map<String, SpotLayout> = spots.associate { local ->
         val origin = roomRect(house.spot(local.spotId)!!.roomId).topLeft
         local.spotId to local.copy(rect = local.rect.translate(origin), stand = local.stand + origin)
+    }
+
+    val decor: List<DecorLayout> = decor.flatMap { (roomId, items) ->
+        val origin = roomRect(roomId).topLeft
+        items.map { it.copy(rect = it.rect.translate(origin)) }
     }
 
     init {
@@ -35,15 +55,16 @@ class FloorPlan(private val house: House, localLayouts: List<SpotLayout>) {
 
     fun roomRect(roomId: String): Rect = roomRect(house.room(roomId)!!)
     fun roomRect(room: Room): Rect = Rect(room.col * ROOM_W, room.row * ROOM_H, (room.col + 1) * ROOM_W, (room.row + 1) * ROOM_H)
-    fun roomCenter(roomId: String): Offset = roomRect(roomId).center
+    fun roomCenter(roomId: String): Offset = roomRect(roomId).let { Offset(it.center.x, it.top + (WALL_FACE + ROOM_H) / 2) }
     fun layout(spotId: String): SpotLayout = layouts.getValue(spotId)
+    fun roomOf(spotId: String): String = house.spot(spotId)!!.roomId
 
     /** Middle of the doorway between two neighbouring rooms. */
     fun door(a: String, b: String): Offset {
         val ra = house.room(a)!!
         val rb = house.room(b)!!
         return if (ra.row == rb.row) {
-            Offset(maxOf(ra.col, rb.col) * ROOM_W, ra.row * ROOM_H + ROOM_H / 2)
+            Offset(maxOf(ra.col, rb.col) * ROOM_W, ra.row * ROOM_H + (WALL_FACE + ROOM_H) / 2)
         } else {
             Offset(ra.col * ROOM_W + ROOM_W / 2, maxOf(ra.row, rb.row) * ROOM_H)
         }
@@ -53,41 +74,84 @@ class FloorPlan(private val house: House, localLayouts: List<SpotLayout>) {
     fun isVerticalDoor(a: String, b: String): Boolean = house.room(a)!!.row == house.room(b)!!.row
 
     fun spotAt(point: Offset): String? =
-        layouts.values.firstOrNull { it.rect.inflate(HIT_SLOP).contains(point) }?.spotId
+        layouts.values.filter { it.rect.inflate(HIT_SLOP).contains(point) }.maxByOrNull { it.rect.bottom }?.spotId
 
     companion object {
         const val ROOM_W = 100f
         const val ROOM_H = 80f
-        const val WALL = 3f
+        const val WALL = 2.5f
+        const val WALL_FACE = 12f
         const val DOOR = 20f
-        private const val HIT_SLOP = 2f
+        private const val HIT_SLOP = 1.5f
 
-        /** Furniture of [dev.peekakoog.engine.Houses.cozy], in room-local coordinates. Doorways are kept clear. */
+        /**
+         * Furniture of [dev.peekakoog.engine.Houses.cozy], in room-local coordinates.
+         * Doorways (back walls at x = 40..60, side walls at the middle of the floor) are kept clear.
+         */
         fun cozy(house: House) = FloorPlan(
             house,
-            listOf(
-                spot("under-bed", Furniture.BED, 8f, 8f, 30f, 40f, stand = Offset(48f, 30f)),
-                spot("wardrobe", Furniture.WARDROBE, 64f, 6f, 30f, 14f, stand = Offset(78f, 30f)),
-                spot("behind-curtain", Furniture.CURTAIN, 90f, 36f, 6f, 30f, stand = Offset(78f, 52f)),
-                spot("bunk-bed", Furniture.BUNK_BED, 6f, 8f, 26f, 40f, stand = Offset(42f, 28f)),
-                spot("tent", Furniture.TENT, 62f, 8f, 30f, 30f, stand = Offset(70f, 48f)),
-                spot("toy-box", Furniture.TOY_BOX, 8f, 56f, 22f, 16f, stand = Offset(36f, 60f)),
-                spot("bathtub", Furniture.BATHTUB, 60f, 6f, 34f, 20f, stand = Offset(72f, 36f)),
-                spot("under-sink", Furniture.SINK, 8f, 6f, 24f, 14f, stand = Offset(22f, 30f)),
-                spot("laundry-basket", Furniture.LAUNDRY, 8f, 56f, 16f, 16f, stand = Offset(32f, 60f)),
-                spot("bookshelf", Furniture.BOOKSHELF, 5f, 8f, 10f, 34f, stand = Offset(24f, 26f)),
-                spot("sofa-cushions", Furniture.SOFA, 10f, 54f, 40f, 18f, stand = Offset(30f, 44f)),
-                spot("behind-tv", Furniture.TV, 62f, 64f, 28f, 8f, stand = Offset(74f, 52f)),
-                spot("coat-rack", Furniture.COAT_RACK, 8f, 6f, 16f, 14f, stand = Offset(24f, 30f)),
-                spot("shoe-cabinet", Furniture.SHOE_CABINET, 38f, 62f, 26f, 12f, stand = Offset(50f, 52f)),
-                spot("oven", Furniture.OVEN, 60f, 6f, 16f, 15f, stand = Offset(66f, 30f)),
-                spot("fridge", Furniture.FRIDGE, 80f, 6f, 15f, 19f, stand = Offset(80f, 34f)),
-                spot("pantry", Furniture.PANTRY, 80f, 54f, 15f, 20f, stand = Offset(72f, 62f)),
-                spot("under-table", Furniture.TABLE, 26f, 48f, 28f, 20f, stand = Offset(42f, 40f)),
+            spots = listOf(
+                spot("under-bed", Furniture.BED, 6f, 6f, 32f, 42f, stand = Offset(46f, 42f)),
+                spot("behind-curtain", Furniture.CURTAIN, 54f, 0f, 22f, 32f, stand = Offset(65f, 42f)),
+                spot("wardrobe", Furniture.WARDROBE, 79f, 0f, 17f, 30f, stand = Offset(87f, 40f)),
+
+                spot("bunk-bed", Furniture.BUNK_BED, 5f, 2f, 26f, 46f, stand = Offset(40f, 44f)),
+                spot("tent", Furniture.TENT, 60f, 14f, 32f, 30f, stand = Offset(70f, 52f)),
+                spot("toy-box", Furniture.TOY_BOX, 8f, 58f, 22f, 16f, stand = Offset(38f, 68f)),
+
+                spot("under-sink", Furniture.SINK, 6f, 0f, 22f, 30f, stand = Offset(18f, 40f)),
+                spot("bathtub", Furniture.BATHTUB, 56f, 6f, 38f, 26f, stand = Offset(74f, 42f)),
+                spot("laundry-basket", Furniture.LAUNDRY, 6f, 56f, 16f, 18f, stand = Offset(30f, 66f)),
+
+                spot("bookshelf", Furniture.BOOKSHELF, 4f, 0f, 22f, 34f, stand = Offset(18f, 44f)),
+                spot("behind-tv", Furniture.TV, 64f, 2f, 28f, 28f, stand = Offset(76f, 40f)),
+                spot("sofa-cushions", Furniture.SOFA, 30f, 54f, 40f, 20f, stand = Offset(24f, 62f)),
+
+                spot("coat-rack", Furniture.COAT_RACK, 6f, 2f, 18f, 32f, stand = Offset(24f, 44f)),
+                spot("shoe-cabinet", Furniture.SHOE_CABINET, 68f, 8f, 26f, 20f, stand = Offset(80f, 38f)),
+
+                spot("pantry", Furniture.PANTRY, 4f, 0f, 20f, 34f, stand = Offset(20f, 46f)),
+                spot("oven", Furniture.OVEN, 62f, 6f, 16f, 24f, stand = Offset(70f, 40f)),
+                spot("fridge", Furniture.FRIDGE, 80f, 0f, 16f, 30f, stand = Offset(88f, 40f)),
+                spot("under-table", Furniture.TABLE, 34f, 52f, 34f, 18f, stand = Offset(26f, 62f)),
+            ),
+            decor = mapOf(
+                "bedroom" to listOf(
+                    decor(Decor.RUG, 26f, 52f, 44f, 20f),
+                    decor(Decor.NIGHTSTAND, 40f, 10f, 10f, 12f),
+                ),
+                "kids-room" to listOf(
+                    decor(Decor.ROUND_RUG, 36f, 48f, 32f, 22f),
+                    decor(Decor.POSTER, 38f, 1.5f, 14f, 9f),
+                    decor(Decor.BALL, 72f, 62f, 8f, 8f),
+                    decor(Decor.BLOCKS, 82f, 56f, 12f, 10f),
+                ),
+                "bathroom" to listOf(
+                    decor(Decor.BATH_MAT, 62f, 36f, 24f, 8f),
+                    decor(Decor.TOILET, 33f, 6f, 13f, 20f),
+                    decor(Decor.TOWEL, 48f, 1.5f, 6f, 10f),
+                ),
+                "living-room" to listOf(
+                    decor(Decor.RUG, 28f, 38f, 44f, 22f),
+                    decor(Decor.PICTURE, 28f, 2f, 10f, 8f),
+                    decor(Decor.PLANT, 4f, 60f, 10f, 16f),
+                ),
+                "hall" to listOf(
+                    decor(Decor.RUNNER, 42f, 46f, 16f, 26f),
+                    decor(Decor.DOORMAT, 41f, 72f, 18f, 7f),
+                    decor(Decor.CLOCK, 30f, 2f, 8f, 8f),
+                    decor(Decor.PLANT, 4f, 60f, 10f, 16f),
+                ),
+                "kitchen" to listOf(
+                    decor(Decor.COUNTER_SINK, 25f, 6f, 14f, 24f),
+                    decor(Decor.KITCHEN_WINDOW, 26f, 1f, 12f, 4.5f),
+                ),
             ),
         )
 
         private fun spot(id: String, furniture: Furniture, x: Float, y: Float, w: Float, h: Float, stand: Offset) =
             SpotLayout(id, furniture, Rect(x, y, x + w, y + h), stand)
+
+        private fun decor(decor: Decor, x: Float, y: Float, w: Float, h: Float) = DecorLayout(decor, Rect(x, y, x + w, y + h))
     }
 }

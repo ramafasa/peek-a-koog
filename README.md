@@ -18,16 +18,16 @@ the seeker found it. The LLM only chooses what to do next. A model that *says* i
 A strong model finds Kodee in a small, fully described house almost every time, and then there is nothing
 to show. So the house and the rules leave room for mistakes:
 
-- **Nine rooms, 27 hiding spots, one long hall.** Every room opens onto the hall, except the laundry room
-  (behind the bathroom) and the garage (outside: through the front door and across the front yard).
+- **Nine rooms, 27 hiding spots, one long hall.** Every room opens onto the hall, except the kitchen (behind the
+  living room), the laundry room (behind the bathroom) and the garage (outside: through the front door and across the front yard).
   From the hall almost everything sounds "warm", so listening there tells you little.
 
   ```
   bedroom | kids room | bathroom ┊ laundry room
   ========== hall ===============🚪 front yard
-  living  |   study   | kitchen  ┊ garage
+  living  ┊  kitchen  |  study   ┊ garage
   ```
-- **A tight move budget: 28.** The plain-Kotlin baseline needs up to 27 (`the move budget is tight` test keeps it that way).
+- **A tight move budget: 23.** The plain-Kotlin baseline needs up to 22 (`the move budget is tight` test keeps it that way).
   Walking, peeking and listening cost a move; looking around is free.
 - **No map for the agents** (from Level 1 on): the prompt only says where they start. They have to look around
   and remember where they've been.

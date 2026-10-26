@@ -75,13 +75,13 @@ class House(
 
 object Houses {
     /**
-     * The house used in the talk. Every room opens onto the long hall, except two:
-     * the laundry room is behind the bathroom, and the garage is outside, across the front yard.
+     * The house used in the talk. Every room opens onto the long hall, except three: the kitchen is
+     * behind the living room, the laundry room behind the bathroom, and the garage is outside, across the front yard.
      *
      * ```
      * bedroom | kids room | bathroom ┊ laundry room
      * ========== hall ===============🚪 front yard
-     * living  |   study   | kitchen  ┊ garage
+     * living  ┊  kitchen  |  study   ┊ garage
      * ```
      */
     val cozy = House(
@@ -132,7 +132,7 @@ object Houses {
             "hall" to "bathroom",
             "hall" to "living-room",
             "hall" to "study",
-            "hall" to "kitchen",
+            "living-room" to "kitchen",
             "bathroom" to "laundry-room",
             "hall" to "front-yard",
             "front-yard" to "garage",

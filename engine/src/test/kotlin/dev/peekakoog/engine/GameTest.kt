@@ -7,14 +7,14 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class GameTest {
-    private fun game(hiddenSpotId: String = "fridge", moveBudget: Int = 15) =
+    private fun game(hiddenSpotId: String = "desk", moveBudget: Int = 15) =
         Game(Houses.cozy, hiddenSpotId, moveBudget = moveBudget)
 
     @Test
     fun `finds Kodee by walking and peeking`() {
         val game = game()
-        game.move("kitchen")
-        game.peek("fridge")
+        game.move("study")
+        game.peek("desk")
         assertEquals(Status.FOUND, game.status)
         assertEquals(13, game.movesLeft)
     }
@@ -31,7 +31,7 @@ class GameTest {
     @Test
     fun `cannot peek into another room`() {
         val game = game()
-        assertTrue(game.peek("fridge").startsWith("Not allowed"))
+        assertTrue(game.peek("desk").startsWith("Not allowed"))
         assertEquals(Status.SEEKING, game.status)
     }
 
@@ -48,24 +48,25 @@ class GameTest {
     @Test
     fun `runs out of moves`() {
         val game = game(moveBudget = 1)
-        game.move("kitchen")
+        game.move("study")
         assertEquals(Status.OUT_OF_MOVES, game.status)
-        assertTrue(game.peek("fridge").startsWith("Not allowed"))
+        assertTrue(game.peek("desk").startsWith("Not allowed"))
     }
 
     @Test
     fun `a lucky guess without looking is still exposed`() {
         val game = game()
-        val claim = game.claim("fridge")
+        val claim = game.claim("desk")
         assertTrue(claim.correct)
         assertFalse(claim.everPeekedThere)
     }
 
     @Test
-    fun `every room opens onto the hall, except the laundry room and the garage`() {
+    fun `every room opens onto the hall, except the laundry room, the kitchen and the garage`() {
         val house = Houses.cozy
         val offTheHall = house.rooms.map { it.id }.filter { it != "hall" && "hall" !in house.doorsFrom(it) }
-        assertEquals(listOf("laundry-room", "garage"), offTheHall)
+        assertEquals(listOf("laundry-room", "kitchen", "garage"), offTheHall)
+        assertEquals(setOf("living-room"), house.doorsFrom("kitchen"))
         assertEquals(setOf("bathroom"), house.doorsFrom("laundry-room"))
         assertEquals(setOf("front-yard"), house.doorsFrom("garage"))
     }
@@ -73,8 +74,8 @@ class GameTest {
     @Test
     fun `finds the shortest path through doors`() {
         assertEquals(listOf("bathroom", "laundry-room"), Houses.cozy.path("hall", "laundry-room"))
-        assertEquals(listOf("hall", "bedroom"), Houses.cozy.path("kitchen", "bedroom"))
-        assertEquals(listOf("hall", "front-yard", "garage"), Houses.cozy.path("kitchen", "garage"))
+        assertEquals(listOf("living-room", "hall", "bedroom"), Houses.cozy.path("kitchen", "bedroom"))
+        assertEquals(listOf("hall", "front-yard", "garage"), Houses.cozy.path("study", "garage"))
         assertEquals(emptyList(), Houses.cozy.path("hall", "hall"))
     }
 

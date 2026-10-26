@@ -138,7 +138,8 @@ class FloorPlan(
 
         /**
          * Rooms and furniture of [dev.peekakoog.engine.Houses.cozy]. Furniture is in room-local coordinates.
-         * Every room is 100 × 80 with its doorway at x = 40..60; the hall is long and narrow, with three
+         * Every room is 100 × 80 with its doorway at x = 40..60 (the kitchen's is in its left wall, from the
+         * living room, at the middle of the floor); the hall is long and narrow, with three
          * doorways in its back wall (x = 40..60, 140..160, 240..260) and the front door at its right end.
          */
         fun cozy(house: House) = FloorPlan(
@@ -151,8 +152,8 @@ class FloorPlan(
                 "hall" to Rect(0f, 80f, 300f, 124f),
                 "front-yard" to Rect(300f, 80f, 400f, 124f),
                 "living-room" to Rect(0f, 124f, 100f, 204f),
-                "study" to Rect(100f, 124f, 200f, 204f),
-                "kitchen" to Rect(200f, 124f, 300f, 204f),
+                "kitchen" to Rect(100f, 124f, 200f, 204f),
+                "study" to Rect(200f, 124f, 300f, 204f),
                 "garage" to Rect(300f, 124f, 400f, 204f),
             ),
             outdoors = setOf("front-yard"),

@@ -21,7 +21,7 @@ sealed interface GameEvent {
  *
  * With [freeHintAfterMove], every move also tells the seeker how warm the new room is, for free.
  *
- * The [moveBudget] is tight on purpose: the plain-Kotlin baseline needs up to 27 moves in [Houses.cozy],
+ * The [moveBudget] is tight on purpose: the plain-Kotlin baseline needs up to 22 moves in [Houses.cozy],
  * so a seeker that wanders, re-checks spots or walks back and forth runs out.
  */
 class Game(
@@ -154,6 +154,6 @@ class Game(
     }
 
     companion object {
-        const val DEFAULT_MOVE_BUDGET = 28
+        const val DEFAULT_MOVE_BUDGET = 23
     }
 }

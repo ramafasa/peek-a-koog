@@ -76,16 +76,19 @@ class HouseSnapshotTest {
     fun `render footprints of a wasteful search`() = runDesktopComposeUiTest(width = 1400, height = 800) {
         val director = Director(house, plan, "hall")
         val wander = listOf(
-            GameEvent.Moved("hall", "kitchen"), GameEvent.Peeked("fridge", found = false),
-            GameEvent.Moved("kitchen", "hall"), GameEvent.Moved("hall", "kitchen"),
-            GameEvent.Peeked("fridge", found = false), GameEvent.Moved("kitchen", "hall"),
+            GameEvent.Moved("hall", "study"), GameEvent.Peeked("desk", found = false),
+            GameEvent.Moved("study", "hall"), GameEvent.Moved("hall", "study"),
+            GameEvent.Peeked("desk", found = false), GameEvent.Moved("study", "hall"),
+            GameEvent.Moved("hall", "living-room"), GameEvent.Moved("living-room", "kitchen"),
+            GameEvent.Peeked("fridge", found = false), GameEvent.Moved("kitchen", "living-room"),
+            GameEvent.Moved("living-room", "hall"),
             GameEvent.Moved("hall", "front-yard"), GameEvent.Moved("front-yard", "garage"),
             GameEvent.Peeked("car", found = false),
         )
         setContent {
             LaunchedEffect(Unit) { wander.forEach { director.play(it) } }
             HouseView(house, plan, director, kodeeSpotId = null, kodeeMood = KodeeMood.NAUGHTY,
-                peeks = mapOf("fridge" to 2, "car" to 1), modifier = Modifier.fillMaxSize())
+                peeks = mapOf("desk" to 2, "fridge" to 1, "car" to 1), modifier = Modifier.fillMaxSize())
         }
         mainClock.advanceTimeBy(30_000)
         val image = onRoot().captureToImage().asSkiaBitmap()

@@ -33,16 +33,16 @@ class ObservableLevelTest {
     private val outDir = File(System.getProperty("snapshots.dir", "build/snapshots")).apply { mkdirs() }
 
     private fun scriptedLlm(): Llm {
-        val tools = SeekerTools(Game(house, "fridge")).asTools().associateBy { it.name }
+        val tools = SeekerTools(Game(house, "desk")).asTools().associateBy { it.name }
         fun call(tool: String, vararg args: Pair<String, String>) = tools.getValue(tool).let { t ->
             t to ToolFromCallable.Args(args.associate { (name, value) -> t.callable.parameters.first { it.name == name } to value })
         }
         val executor = getMockExecutor {
-            val (move, toKitchen) = call("moveTo", "roomId" to "kitchen")
-            mockLLMToolCall(move, toKitchen) onRequestEquals "Find Kodee!"
-            val (peek, fridge) = call("peek", "spotId" to "fridge")
-            mockLLMToolCall(peek, fridge) onRequestContains "You are now in the Kitchen"
-            mockLLMAnswer("Kodee was hiding in the fridge, brr!\nFOUND: fridge") onRequestContains "Found Kodee"
+            val (move, toStudy) = call("moveTo", "roomId" to "study")
+            mockLLMToolCall(move, toStudy) onRequestEquals "Find Kodee!"
+            val (peek, desk) = call("peek", "spotId" to "desk")
+            mockLLMToolCall(peek, desk) onRequestContains "You are now in the Study"
+            mockLLMAnswer("Kodee was hiding under the desk!\nFOUND: desk") onRequestContains "Found Kodee"
         }
         return Llm(executor, AnthropicModels.Sonnet_5)
     }
@@ -53,14 +53,14 @@ class ObservableLevelTest {
 
         onNodeWithText("Level 2 · Lights on").performClick()
         onNodeWithText("What Koog is thinking").assertExists()
-        clickOnPlan(onNodeWithTag("house"), plan.layout("fridge").rect.center)
+        clickOnPlan(onNodeWithTag("house"), plan.layout("desk").rect.center)
         onNodeWithText("Start seeking").performClick()
 
         waitUntil(timeoutMillis = 20_000) { onAllNodes(hasText("Found it for real", substring = true)).fetchSemanticsNodes().isNotEmpty() }
         onRoot().saveAs("6-level-2")
         onNodeWithText("decides: moveTo", substring = true).assertExists()
         onNodeWithText("decides: peek", substring = true).assertExists()
-        onNodeWithText("Kodee was hiding in the fridge", substring = true).assertExists()
+        onNodeWithText("Kodee was hiding under the desk", substring = true).assertExists()
         onRoot().saveAs("6-level-2")
     }
 

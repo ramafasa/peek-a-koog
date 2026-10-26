@@ -29,7 +29,7 @@ the seeker found it. The LLM only chooses what to do next. A model that *says* i
 | Baseline · Plain Kotlin | A hand-written search, no AI. Runs without an API key. | None: this is the bar every agent has to beat |
 | 0 · Just a prompt | No tools at all | Claims to have found the toy without looking anywhere |
 | 1 · Tools, in the dark | Tools + Koog's default strategy | Does odd things and you can't see why |
-| 2 · Observable | Event handlers, tracing, OpenTelemetry | *planned* |
+| 2 · Lights on | The Level 1 agent unchanged, plus Koog's `EventHandler` (the **What Koog is thinking** panel and the detective's thought bubbles) and `OpenTelemetry` (one trace per game) | Now you can *see* why it fails: the next level's problem |
 | 3 · Stateful | Beliefs as structured output, heatmap | *planned* |
 | 4 · Graph | Custom strategy graph, move budget, history compression | *planned* |
 | 5 · Guarded | The engine, not the model, decides who won | *planned* |
@@ -55,6 +55,16 @@ export ANTHROPIC_API_KEY=...
 Hover over the furniture and click to hide Kodee, pick a level and press **Start seeking**.
 The Baseline level needs no API key, so it is a quick way to see the whole show.
 In **You · Human player** mode press **New game** and find Kodee yourself; **Show Kodee** reveals where it is hiding.
+
+### Traces (Level 2+)
+
+```bash
+docker compose up -d                                   # Jaeger, UI at http://localhost:16686
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+./gradlew :app:run                                     # play Level 2, then open Jaeger, service "peek-a-koog"
+```
+
+Langfuse works too: set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` (and `LANGFUSE_HOST` if self-hosted).
 
 ```bash
 ./gradlew test   # engine rules, agent tests with a mocked LLM, and PNG snapshots of the house in app/build/snapshots

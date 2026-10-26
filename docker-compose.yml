@@ -1,0 +1,10 @@
+# Jaeger for Level 2 traces: UI at http://localhost:16686, OTLP gRPC on 4317.
+#   docker compose up -d
+#   export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+services:
+  jaeger:
+    image: jaegertracing/jaeger:latest
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"

@@ -3,6 +3,8 @@ package dev.peekakoog.app
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -44,6 +46,9 @@ import androidx.compose.ui.window.rememberWindowState
 import dev.peekakoog.agent.Level
 import dev.peekakoog.agent.Llm
 import dev.peekakoog.agent.SeekResult
+import dev.peekakoog.agent.Telemetry
+import dev.peekakoog.agent.Thought
+import dev.peekakoog.agent.isObservable
 import dev.peekakoog.agent.baselineSeek
 import dev.peekakoog.agent.seek
 import dev.peekakoog.engine.Game
@@ -72,6 +77,12 @@ fun main() = application {
     }
 }
 
+/** One step for the detective to act out: something the engine saw, or something the agent thought. */
+private sealed interface Beat {
+    data class Event(val event: GameEvent) : Beat
+    data class Mind(val thought: Thought) : Beat
+}
+
 /** Who is seeking Kodee: you, or one of the seekers in the agent module. */
 private sealed interface Player {
     val title: String
@@ -91,10 +102,13 @@ private sealed interface Player {
 
 private val Players: List<Player> = listOf(Player.Human) + Level.entries.map { Player.Agent(it) }
 
-/** The whole game screen. [random] decides where the engine hides Kodee in your games. */
+/**
+ * The whole game screen. [random] decides where the engine hides Kodee in your games;
+ * [llm] is what the agent levels think with (taken from the environment unless given).
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
-    val llm = remember { Llm.fromEnvironment() }
+internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm: Llm = remember { Llm.fromEnvironment() }) {
     val plan = remember { FloorPlan.cozy(house) }
     val director = remember { Director(house, plan, START_ROOM) }
     val scope = rememberCoroutineScope()
@@ -112,20 +126,30 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
     var humanGame by remember { mutableStateOf<Game?>(null) }
     var revealed by remember { mutableStateOf(false) }
 
-    // Events the seeker produced but the detective hasn't acted out yet. A restart swaps in a fresh queue.
-    var queue by remember { mutableStateOf(Channel<GameEvent>(Channel.UNLIMITED)) }
+    // What the seeker did and thought but the detective hasn't acted out yet. A restart swaps in a fresh queue.
+    var queue by remember { mutableStateOf(Channel<Beat>(Channel.UNLIMITED)) }
     var pending by remember { mutableIntStateOf(0) }
-    // Events already acted out, in order. This is what the audience has seen.
+    // Engine events and agent thoughts already acted out, in order. This is what the audience has seen.
     val shown = remember { mutableStateListOf<GameEvent>() }
+    val thoughts = remember { mutableStateListOf<Thought>() }
 
     val currentQueue = queue
     LaunchedEffect(currentQueue) {
         // Runs again for every new queue, after the previous one has stopped acting.
         director.reset()
         shown.clear()
-        for (event in currentQueue) {
-            shown += event
-            director.play(event)
+        thoughts.clear()
+        for (beat in currentQueue) {
+            when (beat) {
+                is Beat.Event -> {
+                    shown += beat.event
+                    director.play(beat.event)
+                }
+                is Beat.Mind -> {
+                    thoughts += beat.thought
+                    director.think(beat.thought)
+                }
+            }
             pending--
         }
     }
@@ -153,6 +177,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
     fun clearBoard() = scope.launch {
         director.reset()
         shown.clear()
+        thoughts.clear()
     }
 
     fun choose(candidate: Player) {
@@ -172,18 +197,18 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
         result = null
         error = null
         running = true
+        // Called from the agent's thread; hop to the UI thread, keeping the order of events and thoughts.
+        fun enqueue(beat: Beat) = scope.launch(Dispatchers.Main) {
+            pending++
+            queue.send(beat)
+        }
         scope.launch {
             director.reset()
             shown.clear()
+            thoughts.clear()
             try {
-                val agentGame = Game(house, spot, START_ROOM) { event ->
-                    // Called from the agent's thread; hop to the UI thread, keeping the order.
-                    scope.launch(Dispatchers.Main) {
-                        pending++
-                        queue.send(event)
-                    }
-                }
-                result = withContext(Dispatchers.IO) { seek(level, agentGame, llm) }
+                val agentGame = Game(house, spot, START_ROOM) { enqueue(Beat.Event(it)) }
+                result = withContext(Dispatchers.IO) { seek(level, agentGame, llm) { enqueue(Beat.Mind(it)) } }
             } catch (e: Exception) {
                 error = e.message ?: e::class.simpleName
             } finally {
@@ -201,7 +226,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
         // Clicks run on the UI thread, so events can go straight to the queue.
         humanGame = Game(house, house.spots.random(random).id, START_ROOM, freeHintAfterMove = true) { event ->
             pending++
-            queue.trySend(event)
+            queue.trySend(Beat.Event(event))
         }
     }
 
@@ -261,6 +286,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
                         else -> "Find Kodee! Click a room to walk (you get a hot/cold hint), click furniture to peek."
                     }
                     is Player.Agent -> when {
+                        agentFinished -> "Game over. See the verdict, or play again."
                         agentStarted -> "Koog the detective is looking for Kodee…"
                         hiddenSpotId == null -> "Hover over the furniture and click to hide Kodee."
                         else -> "Kodee is hidden. Let Koog seek!"
@@ -302,12 +328,14 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
         }
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Who seeks?", fontWeight = FontWeight.SemiBold)
-            Players.forEach { candidate ->
-                FilterChip(
-                    selected = candidate == player,
-                    onClick = { choose(candidate) },
-                    label = { Text(candidate.title) },
-                )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Players.forEach { candidate ->
+                    FilterChip(
+                        selected = candidate == player,
+                        onClick = { choose(candidate) },
+                        label = { Text(candidate.title) },
+                    )
+                }
             }
             Text(player.idea, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
@@ -337,6 +365,9 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
                     if (current.level != Level.BASELINE) {
                         Text("LLM: ${llm.label}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    if (current.level.isObservable) {
+                        Text("Trace: ${Telemetry.description}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     if (agentFinished) {
                         OutlinedButton(onClick = { choose(current) }) { Text("Play again") }
                     } else {
@@ -347,6 +378,9 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
                 }
             }
 
+            if ((player as? Player.Agent)?.level?.isObservable == true) {
+                ThoughtLog(thoughts, Modifier.weight(1.4f))
+            }
             EventLog(house, shown, Modifier.weight(1f))
             if (humanOver && game != null) HumanVerdict(house, game, movesSpent)
             if (agentFinished) result?.let { Verdict(it) }

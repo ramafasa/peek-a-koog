@@ -219,6 +219,7 @@ private fun DrawScope.drawBubble(bubble: Bubble, anchor: Offset, u: Float, textM
         Tone.HOT -> Color(0xFFFFB199)
         Tone.WARM -> Color(0xFFFFE29A)
         Tone.COLD -> Color(0xFFCDE8FF)
+        Tone.THOUGHT -> Color(0xFFE8DEFF)
     }
     val text = textMeasurer.measure(
         bubble.text,

@@ -10,6 +10,8 @@ koog-agents-test = { module = "ai.koog:agents-test", version.ref = "koog" }
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version = "2.0.17" }
+# The OpenTelemetry Kotlin SDK API that Koog builds on (same version), for our own span processor.
+opentelemetry-kotlin-sdk-api = { module = "io.opentelemetry.kotlin:sdk-api", version = "0.3.0" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

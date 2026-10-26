@@ -26,6 +26,7 @@ dependencies {
     testImplementation(kotlin("test"))
     @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
     testImplementation(compose.uiTest)
+    testImplementation(libs.koog.agents.test)
 }
 
 tasks.test {

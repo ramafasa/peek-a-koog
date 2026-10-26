@@ -22,8 +22,12 @@ enum class Level(val title: String, val idea: String) {
         title = "Level 1 · Tools, in the dark",
         idea = "Real tools, default strategy, no observability yet.",
     ),
+    OBSERVABLE(
+        title = "Level 2 · Lights on",
+        idea = "The same agent as Level 1, but now we can peek inside: every LLM call and tool call is streamed, " +
+            "and the run is exported as an OpenTelemetry trace.",
+    ),
     // Next levels, in the order of the talk:
-    // OBSERVABLE   – event handlers, tracing, OpenTelemetry
     // STATEFUL     – beliefs as structured output, validated tools, heatmap
     // GRAPH        – custom strategy graph, move budget, history compression
     // GUARDED      – the engine, not the model, decides who won
@@ -32,8 +36,14 @@ enum class Level(val title: String, val idea: String) {
 
 data class SeekResult(val finalAnswer: String, val claim: GameEvent.Claimed)
 
-/** Runs one game with the seeker of the given level. */
-suspend fun seek(level: Level, game: Game, llm: Llm): SeekResult {
+/** Does this level let us see what the agent is thinking? */
+val Level.isObservable: Boolean get() = this >= Level.OBSERVABLE
+
+/**
+ * Runs one game with the seeker of the given level.
+ * From [Level.OBSERVABLE] on, [onThought] receives every LLM call and tool call as it happens.
+ */
+suspend fun seek(level: Level, game: Game, llm: Llm, onThought: (Thought) -> Unit = {}): SeekResult {
     if (level == Level.BASELINE) {
         val answer = baselineSeek(game)
         return SeekResult(answer, game.claim(parseClaim(answer)))
@@ -51,8 +61,24 @@ suspend fun seek(level: Level, game: Game, llm: Llm): SeekResult {
             systemPrompt = basePrompt(game) + "\nUse your tools to search.",
             toolRegistry = ToolRegistry.builder().tools(SeekerTools(game)).build(),
         )
+        // Exactly the Level 1 agent. The only change: we can now see inside it.
+        Level.OBSERVABLE -> AIAgent(
+            promptExecutor = llm.executor,
+            llmModel = llm.model,
+            systemPrompt = basePrompt(game) + "\nUse your tools to search.",
+            toolRegistry = ToolRegistry.builder().tools(SeekerTools(game)).build(),
+            installFeatures = {
+                watchThoughts(onThought)
+                Telemetry.install(this)
+            },
+        )
     }
-    val answer = agent.run("Find Kodee!")
+    val answer = try {
+        agent.run("Find Kodee!")
+    } finally {
+        // Closing the agent also flushes its OpenTelemetry spans.
+        agent.close()
+    }
     return SeekResult(answer, game.claim(parseClaim(answer)))
 }
 

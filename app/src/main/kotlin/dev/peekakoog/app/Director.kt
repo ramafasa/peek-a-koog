@@ -8,12 +8,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import dev.peekakoog.agent.Thought
 import dev.peekakoog.engine.GameEvent
 import dev.peekakoog.engine.House
 import dev.peekakoog.engine.Warmth
 import kotlinx.coroutines.delay
 
-enum class Tone { NEUTRAL, GOOD, BAD, HOT, WARM, COLD }
+enum class Tone { NEUTRAL, GOOD, BAD, HOT, WARM, COLD, THOUGHT }
 
 data class Bubble(val text: String, val tone: Tone = Tone.NEUTRAL)
 
@@ -123,6 +124,28 @@ class Director(private val house: House, private val plan: FloorPlan, private va
         }
     }
 
+    /** The agent thinking out loud: what the LLM writes between tool calls shows up as a thought bubble. */
+    suspend fun think(thought: Thought) {
+        when (thought) {
+            is Thought.Asking -> {
+                pose = Pose.IDLE
+                bubble = Bubble("🤔 …", Tone.THOUGHT)
+                delay(300)
+            }
+            is Thought.Replied -> thought.text?.let { text ->
+                bubble = Bubble(text.lines().first { it.isNotBlank() }.take(MAX_THOUGHT), Tone.THOUGHT)
+                delay(1400)
+            }
+            is Thought.ToolFailed -> {
+                pose = Pose.CONFUSED
+                bubble = Bubble("⚠️ ${thought.message.take(MAX_THOUGHT)}", Tone.BAD)
+                delay(1400)
+                pose = Pose.IDLE
+            }
+            else -> Unit
+        }
+    }
+
     private suspend fun walk(points: List<Offset>) {
         pose = Pose.WALKING
         for (target in points) {
@@ -137,5 +160,6 @@ class Director(private val house: House, private val plan: FloorPlan, private va
     private companion object {
         /** House units per second. */
         const val SPEED = 110f
+        const val MAX_THOUGHT = 90
     }
 }

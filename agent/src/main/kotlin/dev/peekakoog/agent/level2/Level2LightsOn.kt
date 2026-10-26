@@ -8,7 +8,7 @@ import dev.peekakoog.agent.Thought
 import dev.peekakoog.engine.Game
 
 /**
- * Level 2: lights on. Exactly the Level 1 agent (same prompt, same tools); the only change is that we can
+ * Level 2: lights on. Exactly the Level 1 agent (same prompt without a map, same tools); the only change is that we can
  * now see inside it: every LLM call and tool call is streamed, and the run is exported as an OpenTelemetry trace.
  */
 object Level2LightsOn : Seeker {
@@ -38,18 +38,13 @@ object Level2LightsOn : Seeker {
     }
 }
 
-/** The rules of the game, as this level explains them to the model. */
-private fun systemPrompt(game: Game): String {
-    val house = game.house
-    val layout = house.rooms.joinToString("\n") { room ->
-        val spots = house.spotsIn(room.id).joinToString(", ") { it.id }
-        "- ${room.id} (doors to: ${house.doorsFrom(room.id).joinToString(", ")}): $spots"
-    }
-    return """
-        You are playing hide-and-seek. Someone hid Kodee, the Kotlin mascot, in one of the hiding spots of this house:
-        $layout
-        You start in the ${game.currentRoomId}.
-        Find Kodee. End your answer with a line `FOUND: <spot-id>`.
-        Use your tools to search.
-    """.trimIndent()
-}
+/**
+ * The rules of the game, as this level explains them to the model. There is no map: the house is new to
+ * the seeker, so it has to look around and remember where it has been.
+ */
+internal fun systemPrompt(game: Game): String = """
+    You are playing hide-and-seek in a house you have never seen. Someone hid Kodee, the Kotlin mascot,
+    in one of its hiding spots. You start in the ${game.house.room(game.currentRoomId)!!.name.lowercase()} (${game.currentRoomId}).
+    Find Kodee. End your answer with a line `FOUND: <spot-id>`.
+    Use your tools to explore and search.
+""".trimIndent()

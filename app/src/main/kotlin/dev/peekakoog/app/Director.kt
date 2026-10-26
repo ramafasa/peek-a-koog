@@ -5,6 +5,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
@@ -33,6 +34,15 @@ class Director(private val house: House, private val plan: FloorPlan, private va
     var foundSpotId by mutableStateOf<String?>(null)
         private set
 
+    private val _route = mutableStateListOf(plan.roomCenter(startRoomId))
+
+    /** Waypoints the detective has really walked through: the footprints on the floor. */
+    val route: List<Offset> get() = _route
+
+    /** The waypoint the detective is walking to right now, leaving footprints on the way. */
+    var walkingTo by mutableStateOf<Offset?>(null)
+        private set
+
     private var roomId = startRoomId
 
     suspend fun reset() {
@@ -42,6 +52,9 @@ class Director(private val house: House, private val plan: FloorPlan, private va
         facingLeft = false
         bubble = null
         foundSpotId = null
+        _route.clear()
+        _route += plan.roomCenter(startRoomId)
+        walkingTo = null
     }
 
     suspend fun play(event: GameEvent) {
@@ -102,10 +115,10 @@ class Director(private val house: House, private val plan: FloorPlan, private va
                 val claimed = event.spotId?.let(house::spot)
                 if (claimed != null && !event.everPeekedThere) {
                     // The agent names a spot it never looked at: act out the confident march there.
-                    // Nothing is checked on the way, so no ✗ or ✓ appears.
+                    // Nothing is checked on the way, so no ✗ or ✓ appears, and it leaves no footprints.
                     bubble = Bubble("I know where Kodee is!")
                     walkToRoom(claimed.roomId)
-                    walk(listOf(plan.layout(claimed.id).stand))
+                    walk(listOf(plan.layout(claimed.id).stand), footprints = false)
                     facingLeft = plan.layout(claimed.id).rect.center.x < position.value.x
                 }
                 pose = if (event.spotId == null) Pose.CONFUSED else Pose.CELEBRATING
@@ -116,10 +129,10 @@ class Director(private val house: House, private val plan: FloorPlan, private va
         }
     }
 
-    /** Walks door by door along a shortest route to [target]. */
+    /** Walks door by door along a shortest route to [target]. Only imagined walks use it, so no footprints. */
     private suspend fun walkToRoom(target: String) {
         house.path(roomId, target).forEach { next ->
-            walk(listOf(plan.roomCenter(roomId), plan.door(roomId, next), plan.roomCenter(next)))
+            walk(listOf(plan.roomCenter(roomId), plan.door(roomId, next), plan.roomCenter(next)), footprints = false)
             roomId = next
         }
     }
@@ -146,13 +159,16 @@ class Director(private val house: House, private val plan: FloorPlan, private va
         }
     }
 
-    private suspend fun walk(points: List<Offset>) {
+    private suspend fun walk(points: List<Offset>, footprints: Boolean = true) {
         pose = Pose.WALKING
         for (target in points) {
             val distance = (target - position.value).getDistance()
             if (distance < 0.5f) continue
             facingLeft = target.x < position.value.x - 0.5f || (facingLeft && target.x <= position.value.x)
+            if (footprints) walkingTo = target
             position.animateTo(target, tween((distance / SPEED * 1000).toInt(), easing = LinearEasing))
+            if (footprints) _route += target
+            walkingTo = null
         }
         pose = Pose.IDLE
     }

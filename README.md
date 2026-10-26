@@ -13,6 +13,19 @@ level showed. This is the demo app for a KotlinConf talk proposal.
 The **engine is plain, deterministic Kotlin** (`engine/`). It knows where the toy is and it decides whether
 the seeker found it. The LLM only chooses what to do next. A model that *says* it found Kodee proves nothing.
 
+## The game is hard on purpose
+
+A strong model finds Kodee in a small, fully described house almost every time, and then there is nothing
+to show. So the house and the rules leave room for mistakes:
+
+- **Nine rooms, 27 hiding spots**, all hanging off the hall like a tree: walking back and forth is expensive.
+- **A tight move budget: 18.** The plain-Kotlin baseline needs up to 17 (`the move budget is tight` test keeps it that way).
+  Walking, peeking and listening cost a move; looking around is free.
+- **No map for the agents** (from Level 1 on): the prompt only says where they start. They have to look around
+  and remember where they've been.
+- **Footprints on the floor**: every stretch the detective walks again gets a new lane, brown → orange → red,
+  and a spot peeked twice gets a red **×2**. You can see wasted moves even before Level 2 shows the reasons.
+
 ## Modules
 
 | Module | What's inside |
@@ -28,7 +41,7 @@ the seeker found it. The LLM only chooses what to do next. A model that *says* i
 | You · Human player | The engine hides Kodee and you search: click a room to walk (every move gives a free hot/cold hint), furniture to peek, or **Listen** where you stand for 1 move. Same engine calls as the agent's tools. Use it to explain the rules on stage. | Yours 🙂 |
 | Baseline · Plain Kotlin | A hand-written search, no AI. Runs without an API key. | None: this is the bar every agent has to beat |
 | 0 · Just a prompt | No tools at all | Claims to have found the toy without looking anywhere |
-| 1 · Tools, in the dark | Tools + Koog's default strategy | Does odd things and you can't see why |
+| 1 · Tools, in the dark | Tools + Koog's default strategy, no map | Wanders, re-checks spots, runs out of moves, and you can't see why |
 | 2 · Lights on | The Level 1 agent unchanged, plus Koog's `EventHandler` (the **What Koog is thinking** panel and the detective's thought bubbles) and `OpenTelemetry` (one trace per game) | Now you can *see* why it fails: the next level's problem |
 | 3 · Stateful | Beliefs as structured output, heatmap | *planned* |
 | 4 · Graph | Custom strategy graph, move budget, history compression | *planned* |

@@ -20,6 +20,9 @@ private enum class WallPattern { STRIPES, DOTS, TILES, PLAIN, SUBWAY }
 private data class RoomStyle(val floor: FloorMaterial, val floorColor: Color, val wall: WallPattern, val wallColor: Color)
 
 private val Styles = mapOf(
+    "garage" to RoomStyle(FloorMaterial.STONE, Color(0xFFC4C6C8), WallPattern.PLAIN, Color(0xFFAEB6BF)),
+    "study" to RoomStyle(FloorMaterial.CARPET, Color(0xFFD9BFA6), WallPattern.STRIPES, Color(0xFF9FC3A8)),
+    "laundry-room" to RoomStyle(FloorMaterial.TILES, Color(0xFFE9E3F3), WallPattern.TILES, Color(0xFFCFE3D9)),
     "bedroom" to RoomStyle(FloorMaterial.PLANKS, Color(0xFFE2BF8E), WallPattern.STRIPES, Color(0xFFCDB8EC)),
     "kids-room" to RoomStyle(FloorMaterial.CARPET, Color(0xFFBFE3D0), WallPattern.DOTS, Color(0xFFFFE08A)),
     "bathroom" to RoomStyle(FloorMaterial.TILES, Color(0xFFE6F3F7), WallPattern.TILES, Color(0xFFB9E1EE)),

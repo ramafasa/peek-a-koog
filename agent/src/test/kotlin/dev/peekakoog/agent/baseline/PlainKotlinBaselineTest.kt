@@ -20,4 +20,13 @@ class PlainKotlinBaselineTest {
             assertTrue(game.movesLeft >= 0)
         }
     }
+
+    @Test
+    fun `the move budget is tight`() {
+        // A seeker has to be about as good as this search: in the hardest spot it has one move to spare.
+        val spareMoves = Houses.cozy.spots.minOf { spot ->
+            Game(Houses.cozy, spot.id).also { PlainKotlinBaseline.search(it) }.movesLeft
+        }
+        assertEquals(1, spareMoves)
+    }
 }

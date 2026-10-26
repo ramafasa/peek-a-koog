@@ -20,12 +20,15 @@ sealed interface GameEvent {
  * knows where Kodee is and decides whether the seeker found it.
  *
  * With [freeHintAfterMove], every move also tells the seeker how warm the new room is, for free.
+ *
+ * The [moveBudget] is tight on purpose: the plain-Kotlin baseline needs up to 17 moves in [Houses.cozy],
+ * so a seeker that wanders, re-checks spots or walks back and forth runs out.
  */
 class Game(
     val house: House,
     val hiddenSpotId: String,
     startRoomId: String = "hall",
-    val moveBudget: Int = 15,
+    val moveBudget: Int = DEFAULT_MOVE_BUDGET,
     val freeHintAfterMove: Boolean = false,
     private val onEvent: (GameEvent) -> Unit = {},
 ) {
@@ -148,5 +151,9 @@ class Game(
     private fun emit(event: GameEvent) {
         _events += event
         onEvent(event)
+    }
+
+    companion object {
+        const val DEFAULT_MOVE_BUDGET = 18
     }
 }

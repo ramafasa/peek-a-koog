@@ -9,11 +9,13 @@ import dev.peekakoog.engine.Room
 enum class Furniture {
     BED, WARDROBE, CURTAIN, TOY_BOX, BUNK_BED, TENT, BATHTUB, LAUNDRY, SINK,
     SOFA, TV, BOOKSHELF, COAT_RACK, SHOE_CABINET, FRIDGE, OVEN, PANTRY, TABLE,
+    CAR, WORKBENCH, BOXES, DESK, ARMCHAIR, FILING_CABINET, WASHER, DRYING_RACK, LINEN_CUPBOARD,
 }
 
 /** Things that only make a room recognisable. Nothing can hide in them. */
 enum class Decor(val onFloor: Boolean = false) {
     RUG(onFloor = true), ROUND_RUG(onFloor = true), RUNNER(onFloor = true), BATH_MAT(onFloor = true), DOORMAT(onFloor = true),
+    OIL_STAIN(onFloor = true),
     NIGHTSTAND, TOILET, PLANT, BALL, BLOCKS, COUNTER_SINK,
     POSTER, PICTURE, CLOCK, TOWEL, KITCHEN_WINDOW,
 }
@@ -89,10 +91,23 @@ class FloorPlan(
         /**
          * Furniture of [dev.peekakoog.engine.Houses.cozy], in room-local coordinates.
          * Doorways (back walls at x = 40..60, side walls at the middle of the floor) are kept clear.
+         * The study's door to the kids room is in its front wall, so the middle of its front is kept clear too.
          */
         fun cozy(house: House) = FloorPlan(
             house,
             spots = listOf(
+                spot("car", Furniture.CAR, 10f, 14f, 30f, 52f, stand = Offset(52f, 46f)),
+                spot("workbench", Furniture.WORKBENCH, 56f, 0f, 38f, 30f, stand = Offset(74f, 40f)),
+                spot("boxes", Furniture.BOXES, 62f, 50f, 24f, 20f, stand = Offset(54f, 62f)),
+
+                spot("desk", Furniture.DESK, 8f, 0f, 32f, 30f, stand = Offset(24f, 40f)),
+                spot("filing-cabinet", Furniture.FILING_CABINET, 78f, 0f, 16f, 30f, stand = Offset(86f, 40f)),
+                spot("armchair", Furniture.ARMCHAIR, 66f, 48f, 22f, 20f, stand = Offset(58f, 60f)),
+
+                spot("washing-machine", Furniture.WASHER, 24f, 2f, 18f, 28f, stand = Offset(33f, 40f)),
+                spot("linen-cupboard", Furniture.LINEN_CUPBOARD, 78f, 0f, 18f, 32f, stand = Offset(87f, 42f)),
+                spot("drying-rack", Furniture.DRYING_RACK, 44f, 48f, 34f, 20f, stand = Offset(36f, 60f)),
+
                 spot("under-bed", Furniture.BED, 6f, 6f, 32f, 42f, stand = Offset(46f, 42f)),
                 spot("behind-curtain", Furniture.CURTAIN, 54f, 0f, 22f, 32f, stand = Offset(65f, 42f)),
                 spot("wardrobe", Furniture.WARDROBE, 79f, 0f, 17f, 30f, stand = Offset(87f, 40f)),
@@ -118,13 +133,25 @@ class FloorPlan(
                 spot("under-table", Furniture.TABLE, 34f, 52f, 34f, 18f, stand = Offset(26f, 62f)),
             ),
             decor = mapOf(
+                "garage" to listOf(
+                    decor(Decor.OIL_STAIN, 16f, 70f, 18f, 6f),
+                ),
+                "study" to listOf(
+                    decor(Decor.RUG, 28f, 40f, 30f, 20f),
+                    decor(Decor.PICTURE, 50f, 2f, 10f, 8f),
+                    decor(Decor.PLANT, 4f, 60f, 10f, 16f),
+                ),
+                "laundry-room" to listOf(
+                    decor(Decor.KITCHEN_WINDOW, 54f, 1f, 12f, 4.5f),
+                    decor(Decor.BATH_MAT, 22f, 36f, 22f, 7f),
+                ),
                 "bedroom" to listOf(
                     decor(Decor.RUG, 26f, 52f, 44f, 20f),
                     decor(Decor.NIGHTSTAND, 40f, 10f, 10f, 12f),
                 ),
                 "kids-room" to listOf(
                     decor(Decor.ROUND_RUG, 36f, 48f, 32f, 22f),
-                    decor(Decor.POSTER, 38f, 1.5f, 14f, 9f),
+                    decor(Decor.POSTER, 64f, 1.5f, 14f, 9f),
                     decor(Decor.BALL, 72f, 62f, 8f, 8f),
                     decor(Decor.BLOCKS, 82f, 56f, 12f, 10f),
                 ),

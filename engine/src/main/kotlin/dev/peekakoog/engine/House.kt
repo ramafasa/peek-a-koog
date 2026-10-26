@@ -80,21 +80,37 @@ object Houses {
      * The house used in the talk:
      *
      * ```
+     * garage   |   study   | laundry
+     * ---------+-----------+---------
      * bedroom  | kids room | bathroom
      * ---------+-----------+---------
      * living   |   hall    | kitchen
      * ```
+     *
+     * Every room hangs off the hall like a tree, so going back and forth is expensive.
      */
     val cozy = House(
         rooms = listOf(
-            Room("bedroom", "Bedroom", "🛏️", col = 0, row = 0),
-            Room("kids-room", "Kids room", "🧸", col = 1, row = 0),
-            Room("bathroom", "Bathroom", "🛁", col = 2, row = 0),
-            Room("living-room", "Living room", "🛋️", col = 0, row = 1),
-            Room("hall", "Hall", "🚪", col = 1, row = 1),
-            Room("kitchen", "Kitchen", "🍳", col = 2, row = 1),
+            Room("garage", "Garage", "🚗", col = 0, row = 0),
+            Room("study", "Study", "📝", col = 1, row = 0),
+            Room("laundry-room", "Laundry room", "🫧", col = 2, row = 0),
+            Room("bedroom", "Bedroom", "🛏️", col = 0, row = 1),
+            Room("kids-room", "Kids room", "🧸", col = 1, row = 1),
+            Room("bathroom", "Bathroom", "🛁", col = 2, row = 1),
+            Room("living-room", "Living room", "🛋️", col = 0, row = 2),
+            Room("hall", "Hall", "🚪", col = 1, row = 2),
+            Room("kitchen", "Kitchen", "🍳", col = 2, row = 2),
         ),
         spots = listOf(
+            Spot("car", "garage", "In the car", "🚗"),
+            Spot("workbench", "garage", "Under the workbench", "🔧"),
+            Spot("boxes", "garage", "In the cardboard boxes", "📦"),
+            Spot("desk", "study", "Under the desk", "🖥️"),
+            Spot("armchair", "study", "Behind the armchair", "🪑"),
+            Spot("filing-cabinet", "study", "In the filing cabinet", "🗄️"),
+            Spot("washing-machine", "laundry-room", "In the washing machine", "🫧"),
+            Spot("drying-rack", "laundry-room", "Behind the drying rack", "👕"),
+            Spot("linen-cupboard", "laundry-room", "In the linen cupboard", "🧺"),
             Spot("under-bed", "bedroom", "Under the bed", "🛏️"),
             Spot("wardrobe", "bedroom", "In the wardrobe", "🚪"),
             Spot("behind-curtain", "bedroom", "Behind the curtain", "🪟"),
@@ -120,6 +136,9 @@ object Houses {
             "hall" to "kids-room",
             "living-room" to "bedroom",
             "kitchen" to "bathroom",
+            "kids-room" to "study",
+            "study" to "garage",
+            "study" to "laundry-room",
         ),
     )
 }

@@ -22,4 +22,12 @@ class Level1ToolsInTheDarkTest {
         assertEquals("coat-rack", result.claim.spotId)
         assertTrue(thoughts.isEmpty())
     }
+
+    @Test
+    fun `gets no map of the house`() {
+        val prompt = systemPrompt(Game(Houses.cozy, hiddenSpotId = "coat-rack"))
+        val elsewhere = Houses.cozy.rooms.map { it.id } - "hall"
+        assertTrue(elsewhere.none { it in prompt }, prompt)
+        assertTrue(Houses.cozy.spots.none { it.id in prompt }, prompt)
+    }
 }

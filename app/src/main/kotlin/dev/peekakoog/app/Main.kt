@@ -155,7 +155,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm:
 
     val busy = pending > 0
     val movesSpent = shown.count { it is GameEvent.Moved || it is GameEvent.Peeked || (it is GameEvent.Listened && !it.free) }
-    val peeked = shown.filterIsInstance<GameEvent.Peeked>().map { it.spotId }.toSet()
+    val peeks = shown.filterIsInstance<GameEvent.Peeked>().groupingBy { it.spotId }.eachCount()
 
     val agentStarted = running || result != null || error != null
     val agentFinished = agentStarted && !running && !busy
@@ -299,7 +299,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm:
                 director = director,
                 kodeeSpotId = kodeeSpotId,
                 kodeeMood = kodeeMood,
-                peeked = peeked,
+                peeks = peeks,
                 previewSpotId = (hovered as? Target.Spot)?.id?.takeIf { player is Player.Agent && !agentStarted },
                 hovered = hovered,
                 tooltip = tooltip,
@@ -366,6 +366,12 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm:
                     }
                     current.seeker.traceDestination?.let { destination ->
                         Text("Trace: $destination", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (agentStarted) {
+                        Text(
+                            "Moves left: ${Game.DEFAULT_MOVE_BUDGET - movesSpent} of ${Game.DEFAULT_MOVE_BUDGET}",
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                     if (agentFinished) {
                         OutlinedButton(onClick = { choose(current) }) { Text("Play again") }

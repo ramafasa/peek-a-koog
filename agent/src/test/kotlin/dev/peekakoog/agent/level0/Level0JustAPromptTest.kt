@@ -26,6 +26,6 @@ class Level0JustAPromptTest {
         assertEquals("fridge", result.claim.spotId)
         assertTrue(result.claim.correct)
         assertFalse(result.claim.everPeekedThere, "The agent had no tools, so it cannot have looked")
-        assertEquals(15, game.movesLeft)
+        assertEquals(game.moveBudget, game.movesLeft)
     }
 }

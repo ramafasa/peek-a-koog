@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.runDesktopComposeUiTest
+import dev.peekakoog.engine.Game
 import dev.peekakoog.engine.Houses
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Image
@@ -21,6 +22,10 @@ import kotlin.test.Test
 
 @OptIn(ExperimentalTestApi::class)
 class HumanPlayTest {
+    private companion object {
+        const val BUDGET = Game.DEFAULT_MOVE_BUDGET
+    }
+
     private val house = Houses.cozy
     private val plan = FloorPlan.cozy(house)
     private val outDir = File(System.getProperty("snapshots.dir", "build/snapshots")).apply { mkdirs() }
@@ -34,7 +39,7 @@ class HumanPlayTest {
         onNodeWithText("New game").performClick()
         onNodeWithText("👂 Listen · 1 move").performClick()
         mainClock.advanceTimeBy(3_000)
-        onNodeWithText("Moves left: 14 of 15").assertExists()
+        onNodeWithText("Moves left: ${BUDGET - 1} of $BUDGET").assertExists()
         onNodeWithText("👂 Listen · 1 move").assertIsEnabled()
 
         onNodeWithText("👁 Show Kodee").performClick()
@@ -57,11 +62,11 @@ class HumanPlayTest {
 
         clickOnPlan(onNodeWithTag("house"), plan.layout("under-bed").rect.center)
         mainClock.advanceTimeBy(800)
-        onNodeWithText("Moves left: 15 of 15").assertDoesNotExist()
+        onNodeWithText("Moves left: $BUDGET of $BUDGET").assertDoesNotExist()
 
         onNodeWithText("🔄 Restart").performClick()
         mainClock.advanceTimeBy(5_000)
-        onNodeWithText("Moves left: 15 of 15").assertExists()
+        onNodeWithText("Moves left: $BUDGET of $BUDGET").assertExists()
         onNodeWithText("Nothing yet.").assertExists()
         onNodeWithText("👂 Listen · 1 move").assertIsEnabled()
     }

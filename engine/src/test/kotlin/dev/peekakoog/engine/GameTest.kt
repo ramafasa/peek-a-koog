@@ -66,6 +66,7 @@ class GameTest {
         assertEquals(listOf("kitchen", "bathroom"), Houses.cozy.path("hall", "bathroom"))
         assertEquals(listOf("hall", "living-room", "bedroom"), Houses.cozy.path("kitchen", "bedroom"))
         assertEquals(emptyList(), Houses.cozy.path("hall", "hall"))
+        assertEquals(listOf("kids-room", "study", "laundry-room"), Houses.cozy.path("hall", "laundry-room"))
     }
 
     @Test
@@ -74,7 +75,7 @@ class GameTest {
         val result = game.move("kitchen")
         assertTrue("WARM" in result)
         assertEquals(GameEvent.Listened(Warmth.WARM, free = true), game.events.last())
-        assertEquals(14, game.movesLeft)
+        assertEquals(game.moveBudget - 1, game.movesLeft)
     }
 
     @Test

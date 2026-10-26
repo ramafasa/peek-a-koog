@@ -102,6 +102,15 @@ fun DrawScope.drawFurniture(kind: Furniture, r: Rect, u: Float) = with(Sketch(th
         Furniture.OVEN -> oven()
         Furniture.PANTRY -> pantry()
         Furniture.TABLE -> table()
+        Furniture.CAR -> car()
+        Furniture.WORKBENCH -> workbench()
+        Furniture.BOXES -> boxes()
+        Furniture.DESK -> desk()
+        Furniture.ARMCHAIR -> armchair()
+        Furniture.FILING_CABINET -> filingCabinet()
+        Furniture.WASHER -> washer()
+        Furniture.DRYING_RACK -> dryingRack()
+        Furniture.LINEN_CUPBOARD -> linenCupboard()
     }
 }
 
@@ -126,6 +135,10 @@ fun DrawScope.drawDecor(kind: Decor, r: Rect, u: Float) = with(Sketch(this, r, u
         Decor.BATH_MAT -> {
             rect(0f, 0f, w, h, Color(0xFF8FD3C9), radius = 2.5f)
             for (x in 2..(w.toInt() - 2) step 2) line(x.toFloat(), 1.5f, x.toFloat(), h - 1.5f, Color(0xFF6FBFB3), 0.5f)
+        }
+        Decor.OIL_STAIN -> {
+            oval(0f, 0f, w, h, Color(0x553A3346), outline = false)
+            oval(w * 0.55f, h * 0.3f, w * 0.35f, h * 0.6f, Color(0x443A3346), outline = false)
         }
         Decor.DOORMAT -> {
             rect(0f, 0f, w, h, Color(0xFF9C6B3E), radius = 1f)
@@ -514,5 +527,157 @@ private fun Sketch.table() {
     listOf(0.25f, 0.75f).forEach { fx ->
         rect(w * fx - 3.5f, h - 2f, 7f, 5.5f, Palette.WoodDark, radius = 1f)
         rect(w * fx - 3.5f, h + 2.5f, 7f, 1.5f, Palette.Wood, radius = 0.4f)
+    }
+}
+
+/** Unused space under or inside furniture. */
+private val Gap = Color(0xFF5A4A66)
+
+private fun Sketch.car() {
+    // Seen from above, bonnet towards the front of the garage.
+    shadow(-1f, h - 4f, w + 2f, 6f)
+    listOf(9f, h - 17f).forEach { y ->
+        rect(-1.5f, y, 4f, 9f, Palette.Dark, radius = 1f)
+        rect(w - 2.5f, y, 4f, 9f, Palette.Dark, radius = 1f)
+    }
+    rect(1f, 0f, w - 2f, h, Palette.Red, radius = 6f)
+    rect(4f, 1f, 5f, 1.5f, Color(0xFFFFB3A7), radius = 0.5f, outline = false)
+    rect(w - 9f, 1f, 5f, 1.5f, Color(0xFFFFB3A7), radius = 0.5f, outline = false)
+    rect(4f, 6f, w - 8f, 6f, Palette.Glass, radius = 2f)
+    rect(4f, 12f, w - 8f, 17f, Color(0xFFC94444), radius = 2f)
+    rect(4f, 29f, w - 8f, 8f, Palette.Glass, radius = 2f)
+    line(6f, 35f, 10f, 31f, Color.White, 0.6f)
+    rect(-1.5f, 28f, 3f, 2f, Palette.Red, radius = 0.6f)
+    rect(w - 1.5f, 28f, 3f, 2f, Palette.Red, radius = 0.6f)
+    line(w / 2, 40f, w / 2, h - 5f, Color(0xFFC94444), 0.5f)
+    circle(6f, h - 3f, 1.6f, Palette.Yellow)
+    circle(w - 6f, h - 3f, 1.6f, Palette.Yellow)
+}
+
+private fun Sketch.workbench() {
+    // Pegboard with tools on the wall.
+    rect(2f, 0.5f, w - 4f, 11f, Color(0xFFD9B98C), radius = 0.4f)
+    for (x in 4..(w.toInt() - 4) step 3) for (y in 2..10 step 3) circle(x.toFloat(), y.toFloat(), 0.25f, Color(0xFFB08A5B), outline = false)
+    line(7f, 3f, 7f, 10f, Palette.WoodDark, 0.9f)
+    rect(5f, 2f, 4f, 2f, Palette.MetalDark, radius = 0.3f)
+    line(13f, 3f, 15f, 10f, Palette.Metal, 1.1f)
+    circle(13f, 2.6f, 1.3f, Palette.Metal)
+    poly(Palette.Metal, 22f, 3f, w - 6f, 3f, w - 6f, 6f, 22f, 9f)
+    rect(19.5f, 2.5f, 3f, 5f, Palette.Red, radius = 0.6f)
+    // Bench, open underneath.
+    shadow()
+    rect(1f, 21f, w - 2f, h - 21.5f, Gap, radius = 0.3f, outline = false)
+    block(0f, 12f, w, 9f, front = 3f, top = Palette.WoodLight, frontColor = Palette.Wood)
+    rect(0.5f, 21f, 2.5f, h - 21f, Palette.WoodDark, radius = 0.4f)
+    rect(w - 3f, 21f, 2.5f, h - 21f, Palette.WoodDark, radius = 0.4f)
+    rect(w - 9f, 11f, 6f, 4f, Palette.Blue, radius = 0.5f)
+    rect(5f, h - 5f, 9f, 4f, Palette.Red, radius = 0.5f)
+}
+
+private fun Sketch.boxes() {
+    shadow()
+    val card = Color(0xFFD4A574)
+    val cardDark = Color(0xFFB98352)
+    val tape = Color(0xFFE9D5B5)
+    block(0f, 7f, 13f, h - 7f, front = 7f, top = card, frontColor = cardDark)
+    block(12f, 9f, w - 12f, h - 9f, front = 6f, top = card, frontColor = cardDark)
+    line(6.5f, 7.5f, 6.5f, h - 7.5f, tape, 1f)
+    line(12f + (w - 12f) / 2, 9.5f, 12f + (w - 12f) / 2, h - 6.5f, tape, 1f)
+    block(3f, 0f, 11f, 10f, front = 5f, top = card, frontColor = cardDark)
+    line(8.5f, 0.5f, 8.5f, 4.5f, tape, 1f)
+    // Flaps of the open box on the right.
+    poly(card, 12.5f, 9f, 15f, 6f, 18f, 9f)
+}
+
+private fun Sketch.desk() {
+    // Monitor showing some Kotlin, and a lamp.
+    rect(w / 2 - 7f, 1f, 14f, 10f, Palette.Dark, radius = 0.8f)
+    rect(w / 2 - 6f, 2f, 12f, 8f, Color(0xFF1E2A44), radius = 0.3f, outline = false)
+    line(w / 2 - 4f, 4f, w / 2 + 1f, 4f, Palette.Purple, 0.6f)
+    line(w / 2 - 3f, 6f, w / 2 + 4f, 6f, Palette.Orange, 0.6f)
+    line(w / 2 - 3f, 8f, w / 2 + 2f, 8f, Palette.Green, 0.6f)
+    rect(w / 2 - 1f, 11f, 2f, 1.5f, Palette.Dark, radius = 0.2f, outline = false)
+    circle(4f, 10f, 4f, Color(0x44FFE082), outline = false)
+    line(4f, 14f, 4f, 9f, Palette.MetalDark, 0.6f)
+    poly(Color(0xFFFFE082), 1.5f, 10f, 6.5f, 10f, 5.5f, 7f, 2.5f, 7f)
+    // Desk top, open underneath.
+    shadow()
+    rect(1f, 21f, w - 2f, h - 21.5f, Gap, radius = 0.3f, outline = false)
+    block(0f, 12f, w, 9f, front = 2.5f, top = Palette.WoodLight, frontColor = Palette.Wood)
+    rect(0.5f, 21f, 2.5f, h - 21f, Palette.WoodDark, radius = 0.4f)
+    rect(w - 3f, 21f, 2.5f, h - 21f, Palette.WoodDark, radius = 0.4f)
+    rect(w / 2 - 6f, 14f, 12f, 3f, Palette.WhiteShade, radius = 0.4f)
+    circle(w - 5f, 15.5f, 1.6f, Palette.Red)
+}
+
+private fun Sketch.armchair() {
+    shadow()
+    val fabric = Color(0xFFC0583F)
+    val light = Color(0xFFE07A5F)
+    rect(2f, 0f, w - 4f, 10f, fabric, radius = 2.5f)
+    rect(0f, 5f, 5f, h - 6f, fabric, radius = 2f)
+    rect(w - 5f, 5f, 5f, h - 6f, fabric, radius = 2f)
+    rect(4f, 8f, w - 8f, h - 10f, light, radius = 2f)
+    line(5f, h - 4.5f, w - 5f, h - 4.5f, fabric, 0.5f)
+    rect(2f, h - 1.5f, 2f, 1.5f, Palette.WoodDark, radius = 0.3f, outline = false)
+    rect(w - 4f, h - 1.5f, 2f, 1.5f, Palette.WoodDark, radius = 0.3f, outline = false)
+}
+
+private fun Sketch.filingCabinet() {
+    shadow()
+    // Papers on top.
+    block(0f, 1f, w, h - 1.5f, front = h - 5f, top = Palette.MetalDark, frontColor = Palette.Metal)
+    rect(2f, 0f, 8f, 3.5f, Palette.White, radius = 0.3f)
+    rect(3f, -0.8f, 8f, 3.5f, Palette.White, radius = 0.3f)
+    val top = 4.5f
+    val drawer = (h - 1.5f - top) / 3
+    for (i in 0 until 3) {
+        val y = top + i * drawer
+        rect(1.2f, y + 0.8f, w - 2.4f, drawer - 1.6f, Color(0xFFC9D2DA), radius = 0.4f)
+        rect(w / 2 - 2f, y + 2f, 4f, 1f, Palette.Dark, radius = 0.3f, outline = false)
+        rect(w / 2 - 1.5f, y + 3.6f, 3f, 1.6f, Palette.White, radius = 0.2f, outline = false)
+    }
+}
+
+private fun Sketch.washer() {
+    shadow()
+    block(0f, 0f, w, h - 0.5f, front = h - 4f, top = Palette.WhiteShade, frontColor = Palette.White, radius = 1.2f)
+    rect(1.5f, 5f, w - 3f, 3.5f, Palette.WhiteShade, radius = 0.4f, outline = false)
+    rect(2.5f, 5.9f, 5f, 1.6f, Palette.Glass, radius = 0.3f, outline = false)
+    circle(w - 4f, 6.7f, 1.1f, Palette.MetalDark, outline = false)
+    val cy = 18.5f
+    circle(w / 2, cy, w * 0.36f, Palette.MetalDark)
+    circle(w / 2, cy, w * 0.28f, Palette.Glass)
+    circle(w / 2 - 1.5f, cy + 1f, 1.6f, Palette.Blue, outline = false)
+    circle(w / 2 + 1.6f, cy - 0.8f, 1.3f, Palette.Pink, outline = false)
+    line(w / 2 - 3f, cy - 2.5f, w / 2 - 1f, cy - 4f, Color.White, 0.6f)
+}
+
+private fun Sketch.dryingRack() {
+    shadow(1f, h - 3f, w - 2f, 4f)
+    line(1f, h, 4f, 3f, Palette.MetalDark, 0.8f)
+    line(w - 1f, h, w - 4f, 3f, Palette.MetalDark, 0.8f)
+    line(3f, 3f, w - 3f, 3f, Palette.Metal, 0.9f)
+    line(2f, 9f, w - 2f, 9f, Palette.Metal, 0.7f)
+    // A shirt, socks and a towel.
+    poly(Palette.Blue, 7f, 3f, 14f, 3f, 16f, 6f, 14f, 7f, 14f, 15f, 7f, 15f, 7f, 7f, 5f, 6f)
+    rect(17f, 3f, 2.5f, 6f, Palette.Yellow, radius = 0.6f)
+    rect(20.5f, 3f, 2.5f, 6f, Palette.Yellow, radius = 0.6f)
+    rect(24f, 3f, 7f, 13f, Palette.Pink, radius = 0.5f)
+    line(24f, 13.5f, 31f, 13.5f, Color.White, 0.6f)
+}
+
+private fun Sketch.linenCupboard() {
+    shadow()
+    block(0f, 0f, w, h - 0.5f, front = h - 3.5f, top = Palette.WoodLight, frontColor = Palette.Wood)
+    rect(1.5f, 4.5f, w - 3f, h - 7f, Color(0xFF6E4A2B), radius = 0.3f, outline = false)
+    val shelf = (h - 7f) / 3
+    val towels = listOf(Color.White, Color(0xFF8FD3C9), Color(0xFFFFB3A7), Palette.Yellow)
+    for (s in 0 until 3) {
+        val bottom = 4.5f + (s + 1) * shelf
+        for (k in 0 until 3) {
+            rect(2.5f, bottom - 2.4f * (k + 1), w - 5f, 2.2f, towels[(s + k) % towels.size], radius = 0.8f)
+        }
+        rect(1f, bottom - 0.2f, w - 2f, 1f, Palette.WoodLight, radius = 0f, outline = false)
     }
 }

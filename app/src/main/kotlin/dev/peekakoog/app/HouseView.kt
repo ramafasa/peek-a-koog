@@ -72,6 +72,7 @@ sealed interface Target {
  * The house with the detective and Kodee.
  *
  * @param kodeeSpotId where Kodee is drawn, or null to keep it invisible.
+ * @param peeks how many times each spot has been peeked at; a spot checked more than once gets a "×2" badge.
  * @param previewSpotId where a see-through Kodee previews a hiding spot.
  * @param tooltip text shown next to the [hovered] target.
  */
@@ -83,7 +84,7 @@ fun HouseView(
     director: Director,
     kodeeSpotId: String?,
     kodeeMood: KodeeMood,
-    peeked: Set<String>,
+    peeks: Map<String, Int>,
     modifier: Modifier = Modifier,
     previewSpotId: String? = null,
     hovered: Target? = null,
@@ -126,6 +127,7 @@ fun HouseView(
             drawRect(Highlight.copy(alpha = 0.14f), r.topLeft, r.size)
         }
         plan.decor.filter { it.decor.onFloor }.forEach { drawDecor(it.decor, proj.px(it.rect), u) }
+        drawFootprints(director, proj)
         drawWallCaps(house, plan, px, u, frontDoorRoomId = "hall")
         hoveredRoomId?.let { roomId ->
             val r = proj.px(plan.roomRect(roomId)).deflate(FloorPlan.WALL * u)
@@ -153,7 +155,7 @@ fun HouseView(
         }
         drawRoomLabels(house, plan, px, u, textMeasurer)
 
-        peeked.forEach { spotId ->
+        peeks.forEach { (spotId, times) ->
             val r = proj.px(plan.layout(spotId).rect)
             val found = spotId == director.foundSpotId
             val center = r.topLeft + Offset(2f * u, 4f * u)
@@ -167,6 +169,7 @@ fun HouseView(
                 drawLine(Color.White, center + Offset(-d, -d), center + Offset(d, d), 0.8f * u)
                 drawLine(Color.White, center + Offset(-d, d), center + Offset(d, -d), 0.8f * u)
             }
+            if (times > 1) drawAgainBadge(times, center + Offset(3.6f * u, -2.6f * u), u, textMeasurer)
         }
 
         val feet = proj.px(director.position.value) + Offset(0f, DETECTIVE_HEIGHT * u * 0.25f)
@@ -183,6 +186,16 @@ fun HouseView(
             drawBubble(Bubble(tooltip), anchor = anchor, u, textMeasurer)
         }
     }
+}
+
+/** A wasted move: this spot had already been checked. */
+private fun DrawScope.drawAgainBadge(times: Int, topLeft: Offset, u: Float, textMeasurer: TextMeasurer) {
+    val text = textMeasurer.measure("×$times", TextStyle(fontSize = (3.2f * u).toSp(), fontWeight = FontWeight.Bold, color = Color.White))
+    val pad = Offset(1.2f * u, 0.3f * u)
+    val size = Size(text.size.width + 2 * pad.x, text.size.height + 2 * pad.y)
+    drawRoundRect(Color(0xFFE53935), topLeft, size, CornerRadius(size.height / 2))
+    drawRoundRect(Color.White, topLeft, size, CornerRadius(size.height / 2), style = Stroke(0.5f * u))
+    drawText(text, topLeft = topLeft + pad)
 }
 
 private fun DrawScope.drawKodee(layout: SpotLayout, plan: FloorPlan, mood: KodeeMood, proj: Projection, alpha: Float) {

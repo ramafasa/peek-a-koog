@@ -61,7 +61,7 @@ class Director(private val house: House, private val plan: FloorPlan, private va
         when (event) {
             is GameEvent.Moved -> {
                 bubble = null
-                walk(listOf(plan.roomCenter(event.from), plan.door(event.from, event.to), plan.roomCenter(event.to)))
+                walk(plan.walk(event.from, event.to))
                 roomId = event.to
             }
             is GameEvent.Looked -> {
@@ -132,7 +132,7 @@ class Director(private val house: House, private val plan: FloorPlan, private va
     /** Walks door by door along a shortest route to [target]. Only imagined walks use it, so no footprints. */
     private suspend fun walkToRoom(target: String) {
         house.path(roomId, target).forEach { next ->
-            walk(listOf(plan.roomCenter(roomId), plan.door(roomId, next), plan.roomCenter(next)), footprints = false)
+            walk(plan.walk(roomId, next), footprints = false)
             roomId = next
         }
     }

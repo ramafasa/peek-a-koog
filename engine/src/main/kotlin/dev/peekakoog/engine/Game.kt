@@ -21,7 +21,7 @@ sealed interface GameEvent {
  *
  * With [freeHintAfterMove], every move also tells the seeker how warm the new room is, for free.
  *
- * The [moveBudget] is tight on purpose: the plain-Kotlin baseline needs up to 17 moves in [Houses.cozy],
+ * The [moveBudget] is tight on purpose: the plain-Kotlin baseline needs up to 27 moves in [Houses.cozy],
  * so a seeker that wanders, re-checks spots or walks back and forth runs out.
  */
 class Game(
@@ -79,7 +79,7 @@ class Game(
         val spots = house.spotsIn(room.id).joinToString("\n") { spot ->
             val checked = if (spot.id in _peekedSpots) " (already checked)" else ""
             "- ${spot.id}: ${spot.name}$checked"
-        }
+        }.ifEmpty { "- none, nothing to hide in here" }
         val doors = house.doorsFrom(room.id).joinToString(", ")
         return "You are in the ${room.name} (${room.id}).\nHiding spots:\n$spots\nDoors to: $doors\nMoves left: $movesLeft."
     }
@@ -154,6 +154,6 @@ class Game(
     }
 
     companion object {
-        const val DEFAULT_MOVE_BUDGET = 18
+        const val DEFAULT_MOVE_BUDGET = 28
     }
 }

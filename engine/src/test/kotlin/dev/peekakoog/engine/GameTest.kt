@@ -22,7 +22,7 @@ class GameTest {
     @Test
     fun `cannot walk through walls`() {
         val game = game()
-        val result = game.move("bathroom")
+        val result = game.move("laundry-room")
         assertTrue(result.startsWith("Not allowed"))
         assertEquals("hall", game.currentRoomId)
         assertIs<GameEvent.Rejected>(game.events.last())
@@ -37,11 +37,11 @@ class GameTest {
 
     @Test
     fun `listening tells how far Kodee is`() {
-        val game = game(hiddenSpotId = "bathtub")
+        val game = game(hiddenSpotId = "washing-machine")
         assertTrue("COLD" in game.listen())
-        game.move("kitchen")
-        assertTrue("WARM" in game.listen())
         game.move("bathroom")
+        assertTrue("WARM" in game.listen())
+        game.move("laundry-room")
         assertTrue("HOT" in game.listen())
     }
 
@@ -62,17 +62,26 @@ class GameTest {
     }
 
     @Test
+    fun `every room opens onto the hall, except the laundry room and the garage`() {
+        val house = Houses.cozy
+        val offTheHall = house.rooms.map { it.id }.filter { it != "hall" && "hall" !in house.doorsFrom(it) }
+        assertEquals(listOf("laundry-room", "garage"), offTheHall)
+        assertEquals(setOf("bathroom"), house.doorsFrom("laundry-room"))
+        assertEquals(setOf("front-yard"), house.doorsFrom("garage"))
+    }
+
+    @Test
     fun `finds the shortest path through doors`() {
-        assertEquals(listOf("kitchen", "bathroom"), Houses.cozy.path("hall", "bathroom"))
-        assertEquals(listOf("hall", "living-room", "bedroom"), Houses.cozy.path("kitchen", "bedroom"))
+        assertEquals(listOf("bathroom", "laundry-room"), Houses.cozy.path("hall", "laundry-room"))
+        assertEquals(listOf("hall", "bedroom"), Houses.cozy.path("kitchen", "bedroom"))
+        assertEquals(listOf("hall", "front-yard", "garage"), Houses.cozy.path("kitchen", "garage"))
         assertEquals(emptyList(), Houses.cozy.path("hall", "hall"))
-        assertEquals(listOf("kids-room", "study", "laundry-room"), Houses.cozy.path("hall", "laundry-room"))
     }
 
     @Test
     fun `a free hint comes with every move when enabled`() {
-        val game = Game(Houses.cozy, "bathtub", freeHintAfterMove = true)
-        val result = game.move("kitchen")
+        val game = Game(Houses.cozy, "washing-machine", freeHintAfterMove = true)
+        val result = game.move("bathroom")
         assertTrue("WARM" in result)
         assertEquals(GameEvent.Listened(Warmth.WARM, free = true), game.events.last())
         assertEquals(game.moveBudget - 1, game.movesLeft)
@@ -80,8 +89,8 @@ class GameTest {
 
     @Test
     fun `no free hint by default`() {
-        val game = game(hiddenSpotId = "bathtub")
-        game.move("kitchen")
+        val game = game(hiddenSpotId = "washing-machine")
+        game.move("bathroom")
         assertIs<GameEvent.Moved>(game.events.last())
     }
 }

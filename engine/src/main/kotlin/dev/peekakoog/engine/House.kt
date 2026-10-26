@@ -1,12 +1,10 @@
 package dev.peekakoog.engine
 
-/** A room in the house. [col] and [row] place it on the map grid. */
+/** A room in the house, or a place outside it. Where it is drawn is up to the app; the engine only knows the doors. */
 data class Room(
     val id: String,
     val name: String,
     val emoji: String,
-    val col: Int,
-    val row: Int,
 )
 
 /** A place in a room where something can be hidden. */
@@ -77,29 +75,27 @@ class House(
 
 object Houses {
     /**
-     * The house used in the talk:
+     * The house used in the talk. Every room opens onto the long hall, except two:
+     * the laundry room is behind the bathroom, and the garage is outside, across the front yard.
      *
      * ```
-     * garage   |   study   | laundry
-     * ---------+-----------+---------
-     * bedroom  | kids room | bathroom
-     * ---------+-----------+---------
-     * living   |   hall    | kitchen
+     * bedroom | kids room | bathroom ┊ laundry room
+     * ========== hall ===============🚪 front yard
+     * living  |   study   | kitchen  ┊ garage
      * ```
-     *
-     * Every room hangs off the hall like a tree, so going back and forth is expensive.
      */
     val cozy = House(
         rooms = listOf(
-            Room("garage", "Garage", "🚗", col = 0, row = 0),
-            Room("study", "Study", "📝", col = 1, row = 0),
-            Room("laundry-room", "Laundry room", "🫧", col = 2, row = 0),
-            Room("bedroom", "Bedroom", "🛏️", col = 0, row = 1),
-            Room("kids-room", "Kids room", "🧸", col = 1, row = 1),
-            Room("bathroom", "Bathroom", "🛁", col = 2, row = 1),
-            Room("living-room", "Living room", "🛋️", col = 0, row = 2),
-            Room("hall", "Hall", "🚪", col = 1, row = 2),
-            Room("kitchen", "Kitchen", "🍳", col = 2, row = 2),
+            Room("hall", "Hall", "🚪"),
+            Room("bedroom", "Bedroom", "🛏️"),
+            Room("kids-room", "Kids room", "🧸"),
+            Room("bathroom", "Bathroom", "🛁"),
+            Room("laundry-room", "Laundry room", "🫧"),
+            Room("living-room", "Living room", "🛋️"),
+            Room("study", "Study", "📝"),
+            Room("kitchen", "Kitchen", "🍳"),
+            Room("front-yard", "Front yard", "🌳"),
+            Room("garage", "Garage", "🚗"),
         ),
         spots = listOf(
             Spot("car", "garage", "In the car", "🚗"),
@@ -131,14 +127,15 @@ object Houses {
             Spot("under-table", "kitchen", "Under the table", "🪑"),
         ),
         doors = listOf(
-            "hall" to "living-room",
-            "hall" to "kitchen",
+            "hall" to "bedroom",
             "hall" to "kids-room",
-            "living-room" to "bedroom",
-            "kitchen" to "bathroom",
-            "kids-room" to "study",
-            "study" to "garage",
-            "study" to "laundry-room",
+            "hall" to "bathroom",
+            "hall" to "living-room",
+            "hall" to "study",
+            "hall" to "kitchen",
+            "bathroom" to "laundry-room",
+            "hall" to "front-yard",
+            "front-yard" to "garage",
         ),
     )
 }

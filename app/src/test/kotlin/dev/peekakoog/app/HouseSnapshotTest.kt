@@ -79,12 +79,13 @@ class HouseSnapshotTest {
             GameEvent.Moved("hall", "kitchen"), GameEvent.Peeked("fridge", found = false),
             GameEvent.Moved("kitchen", "hall"), GameEvent.Moved("hall", "kitchen"),
             GameEvent.Peeked("fridge", found = false), GameEvent.Moved("kitchen", "hall"),
-            GameEvent.Moved("hall", "kids-room"), GameEvent.Moved("kids-room", "study"),
+            GameEvent.Moved("hall", "front-yard"), GameEvent.Moved("front-yard", "garage"),
+            GameEvent.Peeked("car", found = false),
         )
         setContent {
             LaunchedEffect(Unit) { wander.forEach { director.play(it) } }
             HouseView(house, plan, director, kodeeSpotId = null, kodeeMood = KodeeMood.NAUGHTY,
-                peeks = mapOf("fridge" to 2), modifier = Modifier.fillMaxSize())
+                peeks = mapOf("fridge" to 2, "car" to 1), modifier = Modifier.fillMaxSize())
         }
         mainClock.advanceTimeBy(30_000)
         val image = onRoot().captureToImage().asSkiaBitmap()

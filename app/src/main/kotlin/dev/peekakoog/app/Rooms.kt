@@ -13,7 +13,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import dev.peekakoog.engine.House
 
-private enum class FloorMaterial { PLANKS, DARK_PLANKS, CARPET, TILES, CHECKER, STONE }
+private enum class FloorMaterial { PLANKS, DARK_PLANKS, CARPET, TILES, CHECKER, STONE, GRASS }
 
 private enum class WallPattern { STRIPES, DOTS, TILES, PLAIN, SUBWAY }
 
@@ -29,6 +29,7 @@ private val Styles = mapOf(
     "living-room" to RoomStyle(FloorMaterial.DARK_PLANKS, Color(0xFFC99A66), WallPattern.PLAIN, Color(0xFFB9D3B0)),
     "hall" to RoomStyle(FloorMaterial.STONE, Color(0xFFD9D3CA), WallPattern.PLAIN, Color(0xFFE5D8C3)),
     "kitchen" to RoomStyle(FloorMaterial.CHECKER, Color(0xFFF3EBDD), WallPattern.SUBWAY, Color(0xFFF7F5F0)),
+    "front-yard" to RoomStyle(FloorMaterial.GRASS, Color(0xFF9BCB6E), WallPattern.PLAIN, Color.Transparent),
 )
 
 private val WallCap = Color(0xFF2E2838)
@@ -36,11 +37,15 @@ private val Baseboard = Color(0xFF8A6A50)
 private val Threshold = Color(0xFFC9A37A)
 private val Doorway = Color(0xFF4A3F55)
 
-/** Floors, back-wall faces and doorways. Furniture is drawn on top of this. */
+/** Floors, back-wall faces and doorways. Furniture is drawn on top of this. Outdoors there are no walls. */
 internal fun DrawScope.drawRoomShells(house: House, plan: FloorPlan, px: (Rect) -> Rect, u: Float) {
     house.rooms.forEach { room ->
         val style = Styles.getValue(room.id)
         val r = px(plan.roomRect(room))
+        if (room.id in plan.outdoors) {
+            clipRect(r.left, r.top, r.right, r.bottom) { drawFloor(style, r, u) }
+            return@forEach
+        }
         val wallFace = Rect(r.left, r.top, r.right, r.top + FloorPlan.WALL_FACE * u)
         val floor = Rect(r.left, wallFace.bottom, r.right, r.bottom)
         clipRect(floor.left, floor.top, floor.right, floor.bottom) { drawFloor(style, floor, u) }
@@ -61,10 +66,10 @@ internal fun DrawScope.drawRoomShells(house: House, plan: FloorPlan, px: (Rect) 
     }
 }
 
-/** The tops of the walls, with gaps for the doorways and the front door. */
-internal fun DrawScope.drawWallCaps(house: House, plan: FloorPlan, px: (Rect) -> Rect, u: Float, frontDoorRoomId: String) {
+/** The tops of the walls, with gaps for the doorways. The [frontDoor] (inside to outside) also gets an open door. */
+internal fun DrawScope.drawWallCaps(house: House, plan: FloorPlan, px: (Rect) -> Rect, u: Float, frontDoor: Pair<String, String>) {
     val wall = FloorPlan.WALL * u
-    house.rooms.forEach { room ->
+    house.rooms.filterNot { it.id in plan.outdoors }.forEach { room ->
         val r = px(plan.roomRect(room))
         drawRect(WallCap, r.topLeft, r.size, style = androidx.compose.ui.graphics.drawscope.Stroke(wall))
     }
@@ -74,14 +79,16 @@ internal fun DrawScope.drawWallCaps(house: House, plan: FloorPlan, px: (Rect) ->
         val size = if (plan.isVerticalDoor(a, b)) Size(wall + 1f, 2 * half) else Size(2 * half, wall + 1f)
         drawRect(Threshold, c - Offset(size.width / 2, size.height / 2), size)
     }
-    // Front door at the bottom of the hall.
-    house.room(frontDoorRoomId)?.let { room ->
-        val r = px(plan.roomRect(room))
-        val c = Offset(r.center.x, r.bottom)
-        drawRect(Threshold, c - Offset(half, wall / 2 + 0.5f), Size(2 * half, wall + 1f))
-        drawRoundRect(Palette.WoodDark, Offset(c.x - half, c.y + wall / 2), Size(2 * half, 2.5f * u), CornerRadius(0.6f * u))
-        drawCircle(Palette.Yellow, 0.6f * u, Offset(c.x + half - 2f * u, c.y + wall / 2 + 1.2f * u))
-    }
+    // The front door stands open, swung out into the yard.
+    val (inside, outside) = frontDoor
+    val c = px(Rect(plan.door(inside, outside), Size.Zero)).topLeft
+    val outwards = if (plan.roomRect(outside).left >= plan.roomRect(inside).right) 1f else -1f
+    val hinge = Offset(c.x + outwards * wall / 2, c.y - half)
+    val leaf = Size(2 * half * 0.9f, 2.8f * u)
+    val leafLeft = if (outwards > 0) hinge.x else hinge.x - leaf.width
+    drawRoundRect(Palette.WoodDark, Offset(leafLeft, hinge.y - leaf.height), leaf, CornerRadius(0.5f * u))
+    drawRoundRect(Palette.Wood, Offset(leafLeft, hinge.y - leaf.height + 0.3f * u), Size(leaf.width, leaf.height * 0.5f), CornerRadius(0.4f * u))
+    drawCircle(Palette.Yellow, 0.6f * u, Offset(hinge.x + outwards * (leaf.width - 1.6f * u), hinge.y - leaf.height / 2))
 }
 
 internal fun DrawScope.drawRoomLabels(house: House, plan: FloorPlan, px: (Rect) -> Rect, u: Float, textMeasurer: TextMeasurer) {
@@ -137,6 +144,21 @@ private fun DrawScope.drawFloor(style: RoomStyle, r: Rect, u: Float) {
         }
         FloorMaterial.TILES -> grid(r, 6f * u, Color.White, 0.5f * u)
         FloorMaterial.STONE -> grid(r, 13f * u, seam, 0.5f * u)
+        FloorMaterial.GRASS -> {
+            val blade = style.floorColor.darker(0.18f)
+            var y = r.top + 3f * u
+            var row = 0
+            while (y < r.bottom) {
+                var x = r.left + 2f * u + (row % 2) * 3.5f * u
+                while (x < r.right) {
+                    drawLine(blade, Offset(x, y), Offset(x - 0.6f * u, y - 1.4f * u), 0.4f * u)
+                    drawLine(blade, Offset(x, y), Offset(x + 0.6f * u, y - 1.5f * u), 0.4f * u)
+                    x += 7f * u
+                }
+                y += 4.5f * u
+                row++
+            }
+        }
         FloorMaterial.CHECKER -> {
             val tile = 8f * u
             val other = Color(0xFFD9826B)

@@ -140,6 +140,20 @@ fun DrawScope.drawDecor(kind: Decor, r: Rect, u: Float) = with(Sketch(this, r, u
             oval(0f, 0f, w, h, Color(0x553A3346), outline = false)
             oval(w * 0.55f, h * 0.3f, w * 0.35f, h * 0.6f, Color(0x443A3346), outline = false)
         }
+        Decor.PATH -> {
+            // Stepping stones from the front door (left, halfway down) to the garage door (bottom, x = 50).
+            listOf(4f to 14f, 12f to 15f, 20f to 14f, 28f to 15f, 36f to 15f, 44f to 17f, 49f to 21.5f, 50f to 26.5f).forEach { (x, y) ->
+                oval(x - 3f, y - 1.8f, 6f, 3.6f, Color(0xFFD9D3CA))
+            }
+        }
+        Decor.BUSH -> {
+            shadow(0f, h - 3f, w, 4f)
+            listOf(0.2f to 0.6f, 0.45f to 0.35f, 0.7f to 0.55f, 0.35f to 0.7f, 0.62f to 0.75f).forEach { (fx, fy) ->
+                circle(w * fx, h * fy, h * 0.36f, Color(0xFF4E9A4C))
+            }
+            circle(w * 0.3f, h * 0.45f, 0.9f, Palette.Red, outline = false)
+            circle(w * 0.66f, h * 0.4f, 0.9f, Palette.Red, outline = false)
+        }
         Decor.DOORMAT -> {
             rect(0f, 0f, w, h, Color(0xFF9C6B3E), radius = 1f)
             for (x in 2..(w.toInt() - 2) step 2) line(x.toFloat(), 1.2f, x.toFloat(), h - 1.2f, Color(0xFF7A512B), 0.5f)

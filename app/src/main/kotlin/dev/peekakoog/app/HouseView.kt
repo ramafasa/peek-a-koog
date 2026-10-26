@@ -128,7 +128,7 @@ fun HouseView(
         }
         plan.decor.filter { it.decor.onFloor }.forEach { drawDecor(it.decor, proj.px(it.rect), u) }
         drawFootprints(director, proj)
-        drawWallCaps(house, plan, px, u, frontDoorRoomId = "hall")
+        drawWallCaps(house, plan, px, u, frontDoor = "hall" to "front-yard")
         hoveredRoomId?.let { roomId ->
             val r = proj.px(plan.roomRect(roomId)).deflate(FloorPlan.WALL * u)
             drawRect(Highlight, r.topLeft, r.size, style = Stroke(0.8f * u))

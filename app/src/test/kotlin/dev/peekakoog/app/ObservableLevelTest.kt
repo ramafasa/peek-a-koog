@@ -17,7 +17,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import dev.peekakoog.agent.Llm
-import dev.peekakoog.agent.SeekerTools
+import dev.peekakoog.agent.level2.SeekerTools
 import dev.peekakoog.engine.Game
 import dev.peekakoog.engine.Houses
 import org.jetbrains.skia.EncodedImageFormat

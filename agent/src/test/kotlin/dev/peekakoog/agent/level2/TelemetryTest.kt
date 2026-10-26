@@ -1,4 +1,7 @@
-package dev.peekakoog.agent
+package dev.peekakoog.agent.level2
+
+import dev.peekakoog.agent.Llm
+import dev.peekakoog.agent.play
 
 import ai.koog.agents.core.tools.reflect.ToolFromCallable
 import ai.koog.agents.testing.tools.getMockExecutor
@@ -42,7 +45,7 @@ class TelemetryTest {
             mockLLMAnswer("FOUND: coat-rack") onRequestContains "You listen carefully"
         }
 
-        seek(Level.OBSERVABLE, game, Llm(executor, AnthropicModels.Sonnet_5))
+        play(Level2LightsOn, game, Llm(executor, AnthropicModels.Sonnet_5))
 
         val names = exported.map { it.name }
         assertTrue(names.any { it.startsWith("invoke_agent") }, "spans: $names")

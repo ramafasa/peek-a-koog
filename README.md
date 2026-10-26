@@ -18,7 +18,7 @@ the seeker found it. The LLM only chooses what to do next. A model that *says* i
 | Module | What's inside |
 |---|---|
 | `engine` | The house, the rules and the event log. No AI, fully unit-tested. |
-| `agent` | Koog seekers, one per `Level`, and the tools they use (`SeekerTools`). |
+| `agent` | One package per level (`baseline`, `level0`, `level1`, `level2`, …), each a self-contained `Seeker`, plus a small harness shared by all (`Seeker`, `Llm`, `Thought`, the `play` referee). |
 | `app` | Compose Desktop UI: a top-down floor plan where you hide Kodee and watch the detective search, plus the level picker and the engine's event log. |
 
 ## Levels
@@ -36,6 +36,10 @@ the seeker found it. The LLM only chooses what to do next. A model that *says* i
 | 6 · Mature | Evals, long-term memory, persistence, model race | *planned* |
 
 The commit that finishes a level gets the tag `level-N`.
+
+**Levels never import each other.** A level that builds on the previous one copies its code (prompt, tools, …),
+so every level reads on its own and `diff level1/ level2/` shows exactly what changed: for Level 2, the four lines
+of `installFeatures`.
 
 ## Running
 

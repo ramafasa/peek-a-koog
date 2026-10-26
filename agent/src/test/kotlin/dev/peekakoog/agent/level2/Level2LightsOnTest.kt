@@ -1,4 +1,8 @@
-package dev.peekakoog.agent
+package dev.peekakoog.agent.level2
+
+import dev.peekakoog.agent.Llm
+import dev.peekakoog.agent.Thought
+import dev.peekakoog.agent.play
 
 import ai.koog.agents.core.tools.reflect.ToolFromCallable
 import ai.koog.agents.testing.tools.getMockExecutor
@@ -12,7 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
-class ObservableSeekerTest {
+class Level2LightsOnTest {
     @Test
     fun `streams the LLM calls and tool calls behind a game`() = runBlocking {
         val game = Game(Houses.cozy, hiddenSpotId = "coat-rack")
@@ -23,7 +27,7 @@ class ObservableSeekerTest {
         }
         val thoughts = mutableListOf<Thought>()
 
-        val result = seek(Level.OBSERVABLE, game, Llm(executor, AnthropicModels.Sonnet_5)) { thoughts += it }
+        val result = play(Level2LightsOn, game, Llm(executor, AnthropicModels.Sonnet_5)) { thoughts += it }
 
         assertEquals("coat-rack", result.claim.spotId)
         assertIs<GameEvent.Listened>(game.events.first())
@@ -32,14 +36,5 @@ class ObservableSeekerTest {
         assertEquals(listOf("listen({})"), (thoughts[1] as Thought.Replied).toolCalls)
         assertTrue("HOT" in (thoughts[3] as Thought.ToolReturned).result)
         assertTrue("coats" in (thoughts[5] as Thought.Replied).text.orEmpty())
-    }
-
-    @Test
-    fun `level 1 stays in the dark`() = runBlocking {
-        val game = Game(Houses.cozy, hiddenSpotId = "coat-rack")
-        val executor = getMockExecutor { mockLLMAnswer("FOUND: coat-rack").asDefaultResponse }
-        val thoughts = mutableListOf<Thought>()
-        seek(Level.TOOLS, game, Llm(executor, AnthropicModels.Sonnet_5)) { thoughts += it }
-        assertTrue(thoughts.isEmpty())
     }
 }

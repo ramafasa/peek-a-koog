@@ -1,4 +1,4 @@
-package dev.peekakoog.agent
+package dev.peekakoog.agent.level2
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool

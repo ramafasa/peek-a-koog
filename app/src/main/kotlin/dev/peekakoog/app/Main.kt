@@ -43,14 +43,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import dev.peekakoog.agent.Level
 import dev.peekakoog.agent.Llm
 import dev.peekakoog.agent.SeekResult
-import dev.peekakoog.agent.Telemetry
 import dev.peekakoog.agent.Thought
-import dev.peekakoog.agent.isObservable
-import dev.peekakoog.agent.baselineSeek
-import dev.peekakoog.agent.seek
+import dev.peekakoog.agent.Seeker
+import dev.peekakoog.agent.Seekers
+import dev.peekakoog.agent.baseline.PlainKotlinBaseline
+import dev.peekakoog.agent.play
 import dev.peekakoog.engine.Game
 import dev.peekakoog.engine.GameEvent
 import dev.peekakoog.engine.House
@@ -94,13 +93,13 @@ private sealed interface Player {
             "Every move tells you how warm you are. Every click is one of the agent's tools."
     }
 
-    data class Agent(val level: Level) : Player {
-        override val title = level.title
-        override val idea = level.idea
+    data class Agent(val seeker: Seeker) : Player {
+        override val title = seeker.title
+        override val idea = seeker.idea
     }
 }
 
-private val Players: List<Player> = listOf(Player.Human) + Level.entries.map { Player.Agent(it) }
+private val Players: List<Player> = listOf(Player.Human) + Seekers.map { Player.Agent(it) }
 
 /**
  * The whole game screen. [random] decides where the engine hides Kodee in your games;
@@ -193,7 +192,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm:
 
     fun startAgent() {
         val spot = hiddenSpotId ?: return
-        val level = (player as? Player.Agent)?.level ?: return
+        val seeker = (player as? Player.Agent)?.seeker ?: return
         result = null
         error = null
         running = true
@@ -208,7 +207,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm:
             thoughts.clear()
             try {
                 val agentGame = Game(house, spot, START_ROOM) { enqueue(Beat.Event(it)) }
-                result = withContext(Dispatchers.IO) { seek(level, agentGame, llm) { enqueue(Beat.Mind(it)) } }
+                result = withContext(Dispatchers.IO) { play(seeker, agentGame, llm) { enqueue(Beat.Mind(it)) } }
             } catch (e: Exception) {
                 error = e.message ?: e::class.simpleName
             } finally {
@@ -362,11 +361,11 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm:
                     }
                 }
                 is Player.Agent -> {
-                    if (current.level != Level.BASELINE) {
+                    if (current.seeker.usesLlm) {
                         Text("LLM: ${llm.label}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if (current.level.isObservable) {
-                        Text("Trace: ${Telemetry.description}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    current.seeker.traceDestination?.let { destination ->
+                        Text("Trace: $destination", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (agentFinished) {
                         OutlinedButton(onClick = { choose(current) }) { Text("Play again") }
@@ -378,7 +377,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm:
                 }
             }
 
-            if ((player as? Player.Agent)?.level?.isObservable == true) {
+            if ((player as? Player.Agent)?.seeker?.showsThoughts == true) {
                 ThoughtLog(thoughts, Modifier.weight(1.4f))
             }
             EventLog(house, shown, Modifier.weight(1f))
@@ -396,7 +395,7 @@ private fun HumanVerdict(house: House, game: Game, movesSpent: Int) {
     val where = house.spot(game.hiddenSpotId)!!.name.replaceFirstChar(Char::lowercase)
     // How many moves the plain-Kotlin baseline needs for the same spot.
     val baseline = remember(game) {
-        Game(house, game.hiddenSpotId, START_ROOM).also { baselineSeek(it) }.let { it.moveBudget - it.movesLeft }
+        Game(house, game.hiddenSpotId, START_ROOM).also { PlainKotlinBaseline.search(it) }.let { it.moveBudget - it.movesLeft }
     }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {

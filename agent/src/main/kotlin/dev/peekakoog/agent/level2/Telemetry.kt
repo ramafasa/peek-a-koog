@@ -1,4 +1,4 @@
-package dev.peekakoog.agent
+package dev.peekakoog.agent.level2
 
 import ai.koog.agents.core.agent.GraphAIAgent
 import ai.koog.agents.features.opentelemetry.feature.OpenTelemetry

@@ -1,4 +1,7 @@
-package dev.peekakoog.agent
+package dev.peekakoog.agent.level0
+
+import dev.peekakoog.agent.Llm
+import dev.peekakoog.agent.play
 
 import ai.koog.agents.testing.tools.getMockExecutor
 import ai.koog.prompt.executor.clients.anthropic.AnthropicModels
@@ -10,7 +13,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class PromptOnlySeekerTest {
+class Level0JustAPromptTest {
     @Test
     fun `a confident answer without tools is exposed by the engine`() = runBlocking {
         val executor = getMockExecutor {
@@ -18,7 +21,7 @@ class PromptOnlySeekerTest {
         }
         val game = Game(Houses.cozy, hiddenSpotId = "fridge")
 
-        val result = seek(Level.PROMPT_ONLY, game, Llm(executor, AnthropicModels.Sonnet_5))
+        val result = play(Level0JustAPrompt, game, Llm(executor, AnthropicModels.Sonnet_5))
 
         assertEquals("fridge", result.claim.spotId)
         assertTrue(result.claim.correct)

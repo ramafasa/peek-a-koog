@@ -9,7 +9,8 @@ sealed interface GameEvent {
     data class Moved(val from: String, val to: String) : GameEvent
     data class Looked(val roomId: String) : GameEvent
     data class Peeked(val spotId: String, val found: Boolean) : GameEvent
-    data class Listened(val warmth: Warmth) : GameEvent
+    /** [free] hints come with a move (see [Game.freeHintAfterMove]) and cost nothing. */
+    data class Listened(val warmth: Warmth, val free: Boolean = false) : GameEvent
     data class Claimed(val spotId: String?, val correct: Boolean, val everPeekedThere: Boolean) : GameEvent
     data class Rejected(val action: String, val reason: String) : GameEvent
 }
@@ -17,12 +18,15 @@ sealed interface GameEvent {
 /**
  * The rules of hide-and-seek. Pure, deterministic Kotlin: the engine — never the LLM —
  * knows where Kodee is and decides whether the seeker found it.
+ *
+ * With [freeHintAfterMove], every move also tells the seeker how warm the new room is, for free.
  */
 class Game(
     val house: House,
     val hiddenSpotId: String,
     startRoomId: String = "hall",
     val moveBudget: Int = 15,
+    val freeHintAfterMove: Boolean = false,
     private val onEvent: (GameEvent) -> Unit = {},
 ) {
     init {
@@ -57,7 +61,11 @@ class Game(
         currentRoomId = roomId
         spendMove()
         emit(GameEvent.Moved(from, roomId))
-        return "You are now in the ${house.room(roomId)!!.name}. Moves left: $movesLeft."
+        val arrived = "You are now in the ${house.room(roomId)!!.name}. Moves left: $movesLeft."
+        if (!freeHintAfterMove || status != Status.SEEKING) return arrived
+        val warmth = warmthHere()
+        emit(GameEvent.Listened(warmth, free = true))
+        return "$arrived You hear: $warmth."
     }
 
     /** Describe the current room: its hiding spots and doors. Free. */
@@ -94,11 +102,7 @@ class Game(
     @Synchronized
     fun listen(): String {
         rejectIfOver("listen")?.let { return it }
-        val warmth = when (house.distance(currentRoomId, hiddenRoomId)) {
-            0 -> Warmth.HOT
-            1 -> Warmth.WARM
-            else -> Warmth.COLD
-        }
+        val warmth = warmthHere()
         spendMove()
         emit(GameEvent.Listened(warmth))
         return "You listen carefully... $warmth. Moves left: $movesLeft."
@@ -117,6 +121,12 @@ class Game(
         )
         emit(event)
         return event
+    }
+
+    private fun warmthHere(): Warmth = when (house.distance(currentRoomId, hiddenRoomId)) {
+        0 -> Warmth.HOT
+        1 -> Warmth.WARM
+        else -> Warmth.COLD
     }
 
     private fun spendMove() {

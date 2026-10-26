@@ -79,8 +79,8 @@ private sealed interface Player {
 
     data object Human : Player {
         override val title = "You · Human player"
-        override val idea = "The engine hides Kodee. Click a room to walk there, click furniture to peek, " +
-            "and listen for hints. Every click is one of the agent's tools."
+        override val idea = "The engine hides Kodee. Click a room to walk there, click furniture to peek. " +
+            "Every move tells you how warm you are. Every click is one of the agent's tools."
     }
 
     data class Agent(val level: Level) : Player {
@@ -127,7 +127,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
     }
 
     val busy = pending > 0
-    val movesSpent = shown.count { it is GameEvent.Moved || it is GameEvent.Peeked || it is GameEvent.Listened }
+    val movesSpent = shown.count { it is GameEvent.Moved || it is GameEvent.Peeked || (it is GameEvent.Listened && !it.free) }
     val peeked = shown.filterIsInstance<GameEvent.Peeked>().map { it.spotId }.toSet()
 
     val agentStarted = running || result != null || error != null
@@ -193,7 +193,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
         revealed = false
         clearBoard()
         // Clicks run on the UI thread, so events can go straight to the queue.
-        humanGame = Game(house, house.spots.random(random).id, START_ROOM) { event ->
+        humanGame = Game(house, house.spots.random(random).id, START_ROOM, freeHintAfterMove = true) { event ->
             pending++
             queue.trySend(event)
         }
@@ -252,7 +252,7 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
                     Player.Human -> when {
                         game == null -> "Press New game: the engine hides Kodee and you have to find it."
                         humanOver -> "Game over. Start a new one whenever you like."
-                        else -> "Find Kodee! Click a room to walk, click furniture to peek, or listen for a hint."
+                        else -> "Find Kodee! Click a room to walk (you get a hot/cold hint), click furniture to peek."
                     }
                     is Player.Agent -> when {
                         agentStarted -> "Koog the detective is looking for Kodee…"
@@ -414,7 +414,7 @@ private fun describe(house: House, event: GameEvent): String = when (event) {
     is GameEvent.Moved -> "🚶 ${event.from} → ${event.to}"
     is GameEvent.Looked -> "👀 looked around ${event.roomId}"
     is GameEvent.Peeked -> "🔍 peeked ${house.spot(event.spotId)!!.name.replaceFirstChar(Char::lowercase)}: ${if (event.found) "FOUND" else "nothing"}"
-    is GameEvent.Listened -> "👂 listened: ${event.warmth}"
+    is GameEvent.Listened -> if (event.free) "👂 hint: ${event.warmth} (free)" else "👂 listened: ${event.warmth}"
     is GameEvent.Claimed -> "📣 claimed ${event.spotId ?: "nothing"} (${if (event.correct) "correct" else "wrong"}, ${if (event.everPeekedThere) "looked there" else "never looked"})"
     is GameEvent.Rejected -> "⛔ ${event.action} rejected: ${event.reason}"
 }

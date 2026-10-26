@@ -67,4 +67,20 @@ class GameTest {
         assertEquals(listOf("hall", "living-room", "bedroom"), Houses.cozy.path("kitchen", "bedroom"))
         assertEquals(emptyList(), Houses.cozy.path("hall", "hall"))
     }
+
+    @Test
+    fun `a free hint comes with every move when enabled`() {
+        val game = Game(Houses.cozy, "bathtub", freeHintAfterMove = true)
+        val result = game.move("kitchen")
+        assertTrue("WARM" in result)
+        assertEquals(GameEvent.Listened(Warmth.WARM, free = true), game.events.last())
+        assertEquals(14, game.movesLeft)
+    }
+
+    @Test
+    fun `no free hint by default`() {
+        val game = game(hiddenSpotId = "bathtub")
+        game.move("kitchen")
+        assertIs<GameEvent.Moved>(game.events.last())
+    }
 }

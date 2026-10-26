@@ -25,7 +25,7 @@ the seeker found it. The LLM only chooses what to do next. A model that *says* i
 
 | Level | Idea | Expected failure |
 |---|---|---|
-| You · Human player | The engine hides Kodee and you search: click a room to walk, furniture to peek, and **Listen** for hints. Same engine calls as the agent's tools. Use it to explain the rules on stage. | Yours 🙂 |
+| You · Human player | The engine hides Kodee and you search: click a room to walk (every move gives a free hot/cold hint), furniture to peek, or **Listen** where you stand for 1 move. Same engine calls as the agent's tools. Use it to explain the rules on stage. | Yours 🙂 |
 | Baseline · Plain Kotlin | A hand-written search, no AI. Runs without an API key. | None: this is the bar every agent has to beat |
 | 0 · Just a prompt | No tools at all | Claims to have found the toy without looking anywhere |
 | 1 · Tools, in the dark | Tools + Koog's default strategy | Does odd things and you can't see why |

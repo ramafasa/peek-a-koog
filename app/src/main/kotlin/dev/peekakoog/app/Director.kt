@@ -81,13 +81,14 @@ class Director(private val house: House, private val plan: FloorPlan, private va
             is GameEvent.Listened -> {
                 pose = Pose.LISTENING
                 bubble = Bubble("Listening…")
-                delay(700)
+                // A free hint after a move is quicker, so walking through rooms doesn't drag.
+                delay(if (event.free) 250 else 700)
                 bubble = when (event.warmth) {
                     Warmth.HOT -> Bubble("HOT! It's in this room 🔥", Tone.HOT)
                     Warmth.WARM -> Bubble("Warm… one door away", Tone.WARM)
                     Warmth.COLD -> Bubble("Cold ❄️", Tone.COLD)
                 }
-                delay(1000)
+                delay(if (event.free) 800 else 1000)
                 pose = Pose.IDLE
             }
             is GameEvent.Rejected -> {

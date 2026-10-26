@@ -79,6 +79,10 @@ export ANTHROPIC_API_KEY=...
 
 Hover over the furniture and click to hide Kodee, pick a level and press **Start seeking**.
 The Baseline level needs no API key, so it is a quick way to see the whole show.
+
+**Pause to explain.** Press **⏸ Pause** (or **Space**, which also works from a presenter remote) to freeze the
+detective mid-step, speech bubble and all; **▶ Continue** carries on from there. Pausing stops the show, not the
+agent: what it does in the meantime waits in line and is acted out after you continue.
 In **You · Human player** mode press **New game** and find Kodee yourself; **Show Kodee** reveals where it is hiding.
 
 ### Traces (Level 2+)

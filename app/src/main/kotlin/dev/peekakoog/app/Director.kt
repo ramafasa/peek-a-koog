@@ -8,12 +8,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Offset
 import dev.peekakoog.agent.Thought
 import dev.peekakoog.engine.GameEvent
 import dev.peekakoog.engine.House
 import dev.peekakoog.engine.Warmth
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 enum class Tone { NEUTRAL, GOOD, BAD, HOT, WARM, COLD, THOUGHT }
 
@@ -22,6 +26,9 @@ data class Bubble(val text: String, val tone: Tone = Tone.NEUTRAL)
 /**
  * Turns engine events into the detective's choreography: walking through doorways, stopping at furniture,
  * peeking, listening. Events are played one by one, so the audience can follow even when the agent is fast.
+ *
+ * The show can be [paused] at any moment, even mid-step, to explain what the detective is doing. Pausing stops the
+ * show, not the seeker: whatever it does in the meantime waits in line and is acted out after [paused] is cleared.
  */
 class Director(private val house: House, private val plan: FloorPlan, private val startRoomId: String) {
     val position = Animatable(plan.roomCenter(startRoomId), Offset.VectorConverter)
@@ -43,6 +50,9 @@ class Director(private val house: House, private val plan: FloorPlan, private va
     var walkingTo by mutableStateOf<Offset?>(null)
         private set
 
+    /** While true, the detective freezes where it is, bubble and all. */
+    var paused by mutableStateOf(false)
+
     private var roomId = startRoomId
 
     suspend fun reset() {
@@ -55,6 +65,7 @@ class Director(private val house: House, private val plan: FloorPlan, private va
         _route.clear()
         _route += plan.roomCenter(startRoomId)
         walkingTo = null
+        paused = false
     }
 
     suspend fun play(event: GameEvent) {
@@ -69,9 +80,9 @@ class Director(private val house: House, private val plan: FloorPlan, private va
                 bubble = Bubble("Let me look around…")
                 repeat(2) {
                     facingLeft = !facingLeft
-                    delay(350)
+                    hold(350)
                 }
-                delay(300)
+                hold(300)
             }
             is GameEvent.Peeked -> {
                 val spot = house.spot(event.spotId)!!
@@ -80,15 +91,15 @@ class Director(private val house: House, private val plan: FloorPlan, private va
                 pose = Pose.PEEKING
                 facingLeft = plan.layout(event.spotId).rect.center.x < position.value.x
                 bubble = Bubble("${spot.name}?")
-                delay(800)
+                hold(800)
                 if (event.found) {
                     foundSpotId = event.spotId
                     pose = Pose.CELEBRATING
                     bubble = Bubble("Found Kodee! 🎉", Tone.GOOD)
-                    delay(1500)
+                    hold(1500)
                 } else {
                     bubble = Bubble("Nothing here.", Tone.BAD)
-                    delay(700)
+                    hold(700)
                     pose = Pose.IDLE
                 }
             }
@@ -96,19 +107,19 @@ class Director(private val house: House, private val plan: FloorPlan, private va
                 pose = Pose.LISTENING
                 bubble = Bubble("Listening…")
                 // A free hint after a move is quicker, so walking through rooms doesn't drag.
-                delay(if (event.free) 250 else 700)
+                hold(if (event.free) 250 else 700)
                 bubble = when (event.warmth) {
                     Warmth.HOT -> Bubble("HOT! It's in this room 🔥", Tone.HOT)
                     Warmth.WARM -> Bubble("Warm… one door away", Tone.WARM)
                     Warmth.COLD -> Bubble("Cold ❄️", Tone.COLD)
                 }
-                delay(if (event.free) 800 else 1000)
+                hold(if (event.free) 800 else 1000)
                 pose = Pose.IDLE
             }
             is GameEvent.Rejected -> {
                 pose = Pose.CONFUSED
                 bubble = Bubble("⛔ ${event.reason}", Tone.BAD)
-                delay(1600)
+                hold(1600)
                 pose = Pose.IDLE
             }
             is GameEvent.Claimed -> {
@@ -124,7 +135,7 @@ class Director(private val house: House, private val plan: FloorPlan, private va
                 pose = if (event.spotId == null) Pose.CONFUSED else Pose.CELEBRATING
                 val where = event.spotId?.let { house.spot(it)?.name?.replaceFirstChar(Char::lowercase) ?: it }
                 bubble = Bubble(if (where == null) "I give up 🤷" else "Kodee is $where!")
-                delay(1500)
+                hold(1500)
             }
         }
     }
@@ -143,16 +154,16 @@ class Director(private val house: House, private val plan: FloorPlan, private va
             is Thought.Asking -> {
                 pose = Pose.IDLE
                 bubble = Bubble("🤔 …", Tone.THOUGHT)
-                delay(300)
+                hold(300)
             }
             is Thought.Replied -> thought.text?.let { text ->
                 bubble = Bubble(text.lines().first { it.isNotBlank() }.take(MAX_THOUGHT), Tone.THOUGHT)
-                delay(1400)
+                hold(1400)
             }
             is Thought.ToolFailed -> {
                 pose = Pose.CONFUSED
                 bubble = Bubble("⚠️ ${thought.message.take(MAX_THOUGHT)}", Tone.BAD)
-                delay(1400)
+                hold(1400)
                 pose = Pose.IDLE
             }
             else -> Unit
@@ -160,22 +171,60 @@ class Director(private val house: House, private val plan: FloorPlan, private va
     }
 
     private suspend fun walk(points: List<Offset>, footprints: Boolean = true) {
-        pose = Pose.WALKING
         for (target in points) {
-            val distance = (target - position.value).getDistance()
-            if (distance < 0.5f) continue
+            if ((target - position.value).getDistance() < 0.5f) continue
             facingLeft = target.x < position.value.x - 0.5f || (facingLeft && target.x <= position.value.x)
             if (footprints) walkingTo = target
-            position.animateTo(target, tween((distance / SPEED * 1000).toInt(), easing = LinearEasing))
+            stepTo(target)
             if (footprints) _route += target
             walkingTo = null
         }
         pose = Pose.IDLE
     }
 
+    /** Walks in a straight line to [target]. A pause stops the detective mid-step; it then carries on from there. */
+    private suspend fun stepTo(target: Offset) {
+        while (true) {
+            awaitContinue()
+            val distance = (target - position.value).getDistance()
+            if (distance < 0.5f) return
+            pose = Pose.WALKING
+            coroutineScope {
+                val step = launch { position.animateTo(target, tween((distance / SPEED * 1000).toInt(), easing = LinearEasing)) }
+                val pause = launch {
+                    snapshotFlow { paused }.first { it }
+                    step.cancel()
+                    pose = Pose.IDLE
+                }
+                step.join()
+                pause.cancel()
+            }
+        }
+    }
+
+    /** Like `delay`, but the clock stops while the show is paused. */
+    private suspend fun hold(millis: Long) {
+        var left = millis
+        while (left > 0) {
+            awaitContinue()
+            val slice = minOf(left, TICK)
+            delay(slice)
+            left -= slice
+        }
+        awaitContinue()
+    }
+
+    private suspend fun hold(millis: Int) = hold(millis.toLong())
+
+    private suspend fun awaitContinue() {
+        snapshotFlow { paused }.first { !it }
+    }
+
     private companion object {
         /** House units per second. */
         const val SPEED = 110f
         const val MAX_THOUGHT = 90
+        /** How often a wait checks for a pause, in ms. */
+        const val TICK = 50L
     }
 }

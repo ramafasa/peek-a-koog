@@ -11,6 +11,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import dev.peekakoog.engine.Game
 import dev.peekakoog.engine.Houses
@@ -69,6 +71,46 @@ class HumanPlayTest {
         onNodeWithText("Moves left: $BUDGET of $BUDGET").assertExists()
         onNodeWithText("Nothing yet.").assertExists()
         onNodeWithText("👂 Listen · 1 move").assertIsEnabled()
+    }
+
+    @Test
+    fun `pause freezes the detective mid-walk, continue carries on`() = runDesktopComposeUiTest(width = 1400, height = 860) {
+        val seed = 7
+        val hidden = house.spots.random(Random(seed))
+        setContent { PeekAKoogScreen(house, Random(seed)) }
+        onNodeWithText("New game").performClick()
+        mainClock.advanceTimeBy(1_000)
+
+        clickOnPlan(onNodeWithTag("house"), plan.layout(hidden.id).rect.center)
+        mainClock.advanceTimeBy(300)
+        onNodeWithText("⏸ Pause").performClick()
+        onNodeWithText("⏸ Paused", substring = true).assertExists()
+        mainClock.advanceTimeBy(30_000)
+        onNodeWithText("You found Kodee", substring = true).assertDoesNotExist()
+
+        onNodeWithText("▶ Continue").performClick()
+        mainClock.advanceTimeBy(30_000)
+        onNodeWithText("You found Kodee", substring = true).assertExists()
+        onNodeWithText("⏸ Paused", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `space pauses and continues`() = runDesktopComposeUiTest(width = 1400, height = 860) {
+        val shortcuts = Shortcuts()
+        fun space() = runOnUiThread {
+            shortcuts.handle(Key.Spacebar, KeyEventType.KeyDown)
+            shortcuts.handle(Key.Spacebar, KeyEventType.KeyUp)
+        }
+        setContent { PeekAKoogScreen(house, Random(7), shortcuts = shortcuts) }
+        onNodeWithText("New game").performClick()
+        mainClock.advanceTimeBy(1_000)
+        clickOnPlan(onNodeWithTag("house"), plan.layout("car").rect.center)
+        mainClock.advanceTimeBy(300)
+
+        space()
+        onNodeWithText("⏸ Paused", substring = true).assertExists()
+        space()
+        onNodeWithText("⏸ Paused", substring = true).assertDoesNotExist()
     }
 
     private fun clickOnPlan(node: SemanticsNodeInteraction, point: androidx.compose.ui.geometry.Offset) {

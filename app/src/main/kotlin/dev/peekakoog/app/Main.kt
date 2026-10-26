@@ -1,6 +1,9 @@
 package dev.peekakoog.app
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,6 +42,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -70,16 +77,28 @@ import kotlin.random.Random
 internal const val START_ROOM = "hall"
 
 fun main() = application {
+    val shortcuts = remember { Shortcuts() }
     Window(
         onCloseRequest = ::exitApplication,
+        onPreviewKeyEvent = { shortcuts.handle(it.key, it.type) },
         title = "Peek-a-Koog",
         icon = BitmapPainter(KodeeLogo.image),
         state = rememberWindowState(width = 1400.dp, height = 860.dp),
     ) {
         MaterialTheme(colorScheme = darkColorScheme()) {
-            Surface(Modifier.fillMaxSize()) { PeekAKoogScreen(Houses.cozy) }
+            Surface(Modifier.fillMaxSize()) { PeekAKoogScreen(Houses.cozy, shortcuts = shortcuts) }
         }
     }
+}
+
+/**
+ * Keyboard shortcuts that work wherever the focus is: the window hands every key press to the screen.
+ * Space pauses and continues the show, also from a presenter remote.
+ */
+class Shortcuts {
+    internal var onKey: (Key, KeyEventType) -> Boolean = { _, _ -> false }
+
+    fun handle(key: Key, type: KeyEventType): Boolean = onKey(key, type)
 }
 
 /** One step for the detective to act out: something the engine saw, or something the agent thought. */
@@ -113,7 +132,12 @@ private val Players: List<Player> = listOf(Player.Human) + Seekers.map { Player.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm: Llm = remember { Llm.fromEnvironment() }) {
+internal fun PeekAKoogScreen(
+    house: House,
+    random: Random = Random.Default,
+    llm: Llm = remember { Llm.fromEnvironment() },
+    shortcuts: Shortcuts = remember { Shortcuts() },
+) {
     val plan = remember { FloorPlan.cozy(house) }
     val director = remember { Director(house, plan, START_ROOM) }
     val scope = rememberCoroutineScope()
@@ -160,6 +184,19 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm:
     }
 
     val busy = pending > 0
+    // Something is being acted out, or the agent is still at it: that is when pausing makes sense.
+    val showRunning = busy || running
+    fun togglePause() {
+        if (showRunning || director.paused) director.paused = !director.paused
+    }
+    shortcuts.onKey = { key, type ->
+        if (key == Key.Spacebar && (showRunning || director.paused)) {
+            if (type == KeyEventType.KeyDown) togglePause()
+            true
+        } else {
+            false
+        }
+    }
     val movesSpent = shown.count { it is GameEvent.Moved || it is GameEvent.Peeked || (it is GameEvent.Listened && !it.free) }
     val peeks = shown.filterIsInstance<GameEvent.Peeked>().groupingBy { it.spotId }.eachCount()
 
@@ -279,9 +316,22 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm:
 
     Row(Modifier.fillMaxSize().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(Modifier.weight(2.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Image(KodeeLogo.image, contentDescription = "Kodee covering its eyes", modifier = Modifier.size(56.dp))
                 Text("Peek-a-Koog", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                if (showRunning || director.paused) {
+                    val pauseLabel = if (director.paused) "▶ Continue" else "⏸ Pause"
+                    if (director.paused) {
+                        Button(onClick = ::togglePause) { Text(pauseLabel) }
+                    } else {
+                        OutlinedButton(onClick = ::togglePause) { Text(pauseLabel) }
+                    }
+                }
             }
             Text(
                 when (player) {
@@ -299,32 +349,47 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default, llm:
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            HouseView(
-                house = house,
-                plan = plan,
-                director = director,
-                kodeeSpotId = kodeeSpotId,
-                kodeeMood = kodeeMood,
-                peeks = peeks,
-                previewSpotId = (hovered as? Target.Spot)?.id?.takeIf { player is Player.Agent && !agentStarted },
-                hovered = hovered,
-                tooltip = tooltip,
-                interactive = when (player) {
-                    Player.Human -> canAct
-                    is Player.Agent -> !agentStarted
-                },
-                onHover = { target ->
-                    // While hiding, only furniture can be pointed at.
-                    hovered = if (player is Player.Agent) target as? Target.Spot else target
-                },
-                onClick = { target ->
-                    when (player) {
-                        Player.Human -> humanAct(target)
-                        is Player.Agent -> (target as? Target.Spot)?.let { hiddenSpotId = it.id }
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                HouseView(
+                    house = house,
+                    plan = plan,
+                    director = director,
+                    kodeeSpotId = kodeeSpotId,
+                    kodeeMood = kodeeMood,
+                    peeks = peeks,
+                    previewSpotId = (hovered as? Target.Spot)?.id?.takeIf { player is Player.Agent && !agentStarted },
+                    hovered = hovered,
+                    tooltip = tooltip,
+                    interactive = when (player) {
+                        Player.Human -> canAct
+                        is Player.Agent -> !agentStarted
+                    },
+                    onHover = { target ->
+                        // While hiding, only furniture can be pointed at.
+                        hovered = if (player is Player.Agent) target as? Target.Spot else target
+                    },
+                    onClick = { target ->
+                        when (player) {
+                            Player.Human -> humanAct(target)
+                            is Player.Agent -> (target as? Target.Spot)?.let { hiddenSpotId = it.id }
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize().testTag("house"),
+                )
+                if (director.paused) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
+                    ) {
+                        Text(
+                            "⏸ Paused · press Continue or Space",
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        )
                     }
-                },
-                modifier = Modifier.weight(1f).fillMaxWidth().testTag("house"),
-            )
+                }
+            }
             Text(
                 "Kodee by JetBrains s.r.o. is licensed under CC BY 4.0",
                 fontSize = 11.sp,

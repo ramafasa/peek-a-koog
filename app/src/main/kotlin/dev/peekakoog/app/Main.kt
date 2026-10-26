@@ -497,11 +497,13 @@ private fun EventLog(house: House, events: List<GameEvent>, modifier: Modifier =
     LaunchedEffect(events.size) { if (events.isNotEmpty()) listState.animateScrollToItem(events.lastIndex) }
     Card(modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
-            Text("What the engine saw", fontWeight = FontWeight.SemiBold)
+            PanelTitle("What the engine saw") { eventsAsText(house, events) }
             if (events.isEmpty()) Text("Nothing yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            LazyColumn(state = listState) {
-                items(events) { event ->
-                    Text(describe(house, event), fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+            SelectionContainer {
+                LazyColumn(state = listState) {
+                    items(events) { event ->
+                        Text(describe(house, event), fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                    }
                 }
             }
         }
@@ -519,6 +521,7 @@ private fun Verdict(result: SeekResult) {
     }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
+            PanelTitle("Verdict") { "$headline\nClaimed: ${claim.spotId ?: "–"}\n\n${result.finalAnswer}" }
             Text(headline, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Text("Claimed: ${claim.spotId ?: "–"}", fontSize = 13.sp)
             FinalAnswer(result.finalAnswer)
@@ -560,6 +563,10 @@ private fun FinalAnswer(text: String) {
 }
 
 private const val COLLAPSED_LINES = 8
+
+/** Everything in the engine's panel: what the Copy button copies. */
+internal fun eventsAsText(house: House, events: List<GameEvent>): String =
+    (listOf("What the engine saw") + events.map { describe(house, it) }).joinToString("\n")
 
 private fun describe(house: House, event: GameEvent): String = when (event) {
     is GameEvent.Moved -> "🚶 ${event.from} → ${event.to}"

@@ -23,7 +23,10 @@ import dev.peekakoog.engine.Houses
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Image
 import java.io.File
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import kotlin.test.Test
+import kotlin.test.assertContains
 
 /** Level 2 on screen, with a scripted LLM instead of a real one. */
 @OptIn(ExperimentalTestApi::class)
@@ -62,6 +65,35 @@ class ObservableLevelTest {
         onNodeWithText("decides: peek", substring = true).assertExists()
         onNodeWithText("Kodee was hiding under the desk", substring = true).assertExists()
         onRoot().saveAs("6-level-2")
+    }
+
+    @Test
+    fun `every panel can be copied`() = runDesktopComposeUiTest(width = 1400, height = 860) {
+        val copied = mutableListOf<String>()
+        val systemClipboard = copyToClipboard
+        copyToClipboard = { copied += it }
+        try {
+            setContent { PeekAKoogScreen(house, llm = scriptedLlm()) }
+            onNodeWithText("Level 2 · Lights on").performClick()
+            clickOnPlan(onNodeWithTag("house"), plan.layout("desk").rect.center)
+            onNodeWithText("Start seeking").performClick()
+            waitUntil(timeoutMillis = 20_000) { onAllNodes(hasText("Found it for real", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+
+            // Thoughts, engine, verdict: in the order they appear on screen. A clicked button turns into "✓ Copied".
+            repeat(3) { onAllNodesWithText("📋 Copy")[0].performClick() }
+            onAllNodesWithText("✓ Copied").assertCountEquals(3)
+
+            val (thoughts, engine, verdict) = copied
+            assertContains(thoughts, "What Koog is thinking")
+            assertContains(thoughts, "decides: moveTo")
+            assertContains(thoughts, "Kodee was hiding under the desk")
+            assertContains(engine, "hall → study")
+            assertContains(engine, "peeked under the desk: FOUND")
+            assertContains(verdict, "Found it for real")
+            assertContains(verdict, "FOUND: desk")
+        } finally {
+            copyToClipboard = systemClipboard
+        }
     }
 
     @Test

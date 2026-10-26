@@ -64,6 +64,22 @@ class ObservableLevelTest {
         onRoot().saveAs("6-level-2")
     }
 
+    @Test
+    fun `a long final answer can be read in full`() = runDesktopComposeUiTest(width = 1400, height = 860) {
+        val reasoning = (1..20).joinToString("\n") { "Step $it: I imagine looking somewhere." }
+        val executor = getMockExecutor { mockLLMAnswer("$reasoning\nFOUND: desk").asDefaultResponse }
+        setContent { PeekAKoogScreen(house, llm = Llm(executor, AnthropicModels.Sonnet_5)) }
+
+        onNodeWithText("Level 0 · Just a prompt").performClick()
+        clickOnPlan(onNodeWithTag("house"), plan.layout("desk").rect.center)
+        onNodeWithText("Start seeking").performClick()
+        waitUntil(timeoutMillis = 20_000) { onAllNodes(hasText("Lucky guess", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+
+        onNodeWithText("Show the full answer ▾").performClick()
+        onNodeWithText("Show less ▴").assertExists()
+        onNodeWithText("Step 20", substring = true).assertExists()
+    }
+
     private fun clickOnPlan(node: SemanticsNodeInteraction, point: Offset) {
         val size = node.fetchSemanticsNode().size
         val target = Projection(Size(size.width.toFloat(), size.height.toFloat()), plan).px(point)

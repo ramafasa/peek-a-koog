@@ -1,6 +1,10 @@
 package dev.peekakoog.app
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -22,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +43,7 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
@@ -450,12 +456,45 @@ private fun Verdict(result: SeekResult) {
         Column(Modifier.padding(12.dp)) {
             Text(headline, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Text("Claimed: ${claim.spotId ?: "–"}", fontSize = 13.sp)
-            SelectionContainer {
-                Text(result.finalAnswer, fontSize = 13.sp, maxLines = 8, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            FinalAnswer(result.finalAnswer)
         }
     }
 }
+
+/** What the LLM answered at the end: a few lines, and all of it on request (scrolling if it is long). */
+@Composable
+private fun FinalAnswer(text: String) {
+    var expanded by remember(text) { mutableStateOf(false) }
+    var cutOff by remember(text) { mutableStateOf(false) }
+    val fullWidth = Modifier.fillMaxWidth()
+    SelectionContainer {
+        if (expanded) {
+            Text(
+                text,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = fullWidth.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+            )
+        } else {
+            Text(
+                text,
+                fontSize = 13.sp,
+                maxLines = COLLAPSED_LINES,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                onTextLayout = { cutOff = it.hasVisualOverflow },
+                modifier = fullWidth,
+            )
+        }
+    }
+    if (cutOff || expanded) {
+        TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(0.dp)) {
+            Text(if (expanded) "Show less ▴" else "Show the full answer ▾", fontSize = 13.sp)
+        }
+    }
+}
+
+private const val COLLAPSED_LINES = 8
 
 private fun describe(house: House, event: GameEvent): String = when (event) {
     is GameEvent.Moved -> "🚶 ${event.from} → ${event.to}"

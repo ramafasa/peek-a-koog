@@ -49,6 +49,23 @@ class HumanPlayTest {
         onRoot().saveAs("5-human-found")
     }
 
+    @Test
+    fun `restart in the middle of a walk starts a clean game`() = runDesktopComposeUiTest(width = 1400, height = 860) {
+        setContent { PeekAKoogScreen(house, Random(3)) }
+        onNodeWithText("New game").performClick()
+        mainClock.advanceTimeBy(1_000)
+
+        clickOnPlan(onNodeWithTag("house"), plan.layout("under-bed").rect.center)
+        mainClock.advanceTimeBy(800)
+        onNodeWithText("Moves left: 15 of 15").assertDoesNotExist()
+
+        onNodeWithText("🔄 Restart").performClick()
+        mainClock.advanceTimeBy(5_000)
+        onNodeWithText("Moves left: 15 of 15").assertExists()
+        onNodeWithText("Nothing yet.").assertExists()
+        onNodeWithText("👂 Listen · 1 move").assertIsEnabled()
+    }
+
     private fun clickOnPlan(node: SemanticsNodeInteraction, point: androidx.compose.ui.geometry.Offset) {
         val size = node.fetchSemanticsNode().size
         val target = Projection(Size(size.width.toFloat(), size.height.toFloat()), plan).px(point)

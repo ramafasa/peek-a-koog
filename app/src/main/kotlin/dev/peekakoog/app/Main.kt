@@ -112,14 +112,18 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
     var humanGame by remember { mutableStateOf<Game?>(null) }
     var revealed by remember { mutableStateOf(false) }
 
-    // Events the seeker produced but the detective hasn't acted out yet.
-    val queue = remember { Channel<GameEvent>(Channel.UNLIMITED) }
+    // Events the seeker produced but the detective hasn't acted out yet. A restart swaps in a fresh queue.
+    var queue by remember { mutableStateOf(Channel<GameEvent>(Channel.UNLIMITED)) }
     var pending by remember { mutableIntStateOf(0) }
     // Events already acted out, in order. This is what the audience has seen.
     val shown = remember { mutableStateListOf<GameEvent>() }
 
-    LaunchedEffect(Unit) {
-        for (event in queue) {
+    val currentQueue = queue
+    LaunchedEffect(currentQueue) {
+        // Runs again for every new queue, after the previous one has stopped acting.
+        director.reset()
+        shown.clear()
+        for (event in currentQueue) {
             shown += event
             director.play(event)
             pending--
@@ -188,10 +192,12 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
         }
     }
 
-    fun newHumanGame() {
-        if (busy) return
+    /** Starts a game with a new hiding spot. Works mid-game too: what the old game still had queued is dropped. */
+    fun startHumanGame() {
+        queue.cancel()
+        queue = Channel(Channel.UNLIMITED)
+        pending = 0
         revealed = false
-        clearBoard()
         // Clicks run on the UI thread, so events can go straight to the queue.
         humanGame = Game(house, house.spots.random(random).id, START_ROOM, freeHintAfterMove = true) { event ->
             pending++
@@ -308,7 +314,9 @@ internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
             when (val current = player) {
                 Player.Human -> {
                     if (game == null || humanOver) {
-                        Button(onClick = ::newHumanGame, enabled = !busy) { Text("New game") }
+                        Button(onClick = ::startHumanGame) { Text("New game") }
+                    } else {
+                        OutlinedButton(onClick = ::startHumanGame) { Text("🔄 Restart") }
                     }
                     if (game != null && !humanOver) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

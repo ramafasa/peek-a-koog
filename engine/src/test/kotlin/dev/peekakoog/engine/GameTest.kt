@@ -60,4 +60,11 @@ class GameTest {
         assertTrue(claim.correct)
         assertFalse(claim.everPeekedThere)
     }
+
+    @Test
+    fun `finds the shortest path through doors`() {
+        assertEquals(listOf("kitchen", "bathroom"), Houses.cozy.path("hall", "bathroom"))
+        assertEquals(listOf("hall", "living-room", "bedroom"), Houses.cozy.path("kitchen", "bedroom"))
+        assertEquals(emptyList(), Houses.cozy.path("hall", "hall"))
+    }
 }

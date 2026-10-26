@@ -62,20 +62,35 @@ internal class Projection(canvas: Size, plan: FloorPlan) {
     fun units(p: Offset) = (p - origin) / u
 }
 
+/** Something on the plan the pointer can point at. */
+sealed interface Target {
+    data class Spot(val id: String) : Target
+    data class Room(val id: String) : Target
+}
+
+/**
+ * The house with the detective and Kodee.
+ *
+ * @param kodeeSpotId where Kodee is drawn, or null to keep it invisible.
+ * @param previewSpotId where a see-through Kodee previews a hiding spot.
+ * @param tooltip text shown next to the [hovered] target.
+ */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun HouseView(
     house: House,
     plan: FloorPlan,
     director: Director,
-    hiddenSpotId: String?,
-    hoveredSpotId: String?,
-    peeked: Set<String>,
+    kodeeSpotId: String?,
     kodeeMood: KodeeMood,
-    canHide: Boolean,
-    onHover: (String?) -> Unit,
-    onHide: (String) -> Unit,
+    peeked: Set<String>,
     modifier: Modifier = Modifier,
+    previewSpotId: String? = null,
+    hovered: Target? = null,
+    tooltip: String? = null,
+    interactive: Boolean = false,
+    onHover: (Target?) -> Unit = {},
+    onClick: (Target) -> Unit = {},
 ) {
     val textMeasurer = rememberTextMeasurer()
     val phase by rememberInfiniteTransition().animateFloat(
@@ -84,28 +99,40 @@ fun HouseView(
         animationSpec = infiniteRepeatable(tween(520, easing = LinearEasing)),
     )
     var canvasSize by remember { mutableStateOf(Size.Zero) }
-    fun spotUnder(pointer: Offset) = plan.spotAt(Projection(canvasSize, plan).units(pointer))
+    fun targetAt(pointer: Offset): Target? {
+        val point = Projection(canvasSize, plan).units(pointer)
+        return plan.spotAt(point)?.let { Target.Spot(it) } ?: plan.roomAt(point)?.let { Target.Room(it) }
+    }
 
     Canvas(
         modifier
             .onSizeChanged { canvasSize = Size(it.width.toFloat(), it.height.toFloat()) }
-            .pointerHoverIcon(if (canHide && hoveredSpotId != null) PointerIcon.Hand else PointerIcon.Default)
-            .onPointerEvent(PointerEventType.Move) { onHover(spotUnder(it.changes.first().position)) }
+            .pointerHoverIcon(if (interactive && hovered != null) PointerIcon.Hand else PointerIcon.Default)
+            .onPointerEvent(PointerEventType.Move) { if (interactive) onHover(targetAt(it.changes.first().position)) }
             .onPointerEvent(PointerEventType.Exit) { onHover(null) }
             .onPointerEvent(PointerEventType.Press) {
-                if (canHide) spotUnder(it.changes.first().position)?.let(onHide)
+                if (interactive) targetAt(it.changes.first().position)?.let(onClick)
             },
     ) {
         val proj = Projection(size, plan)
         val u = proj.u
+        val hoveredSpotId = (hovered as? Target.Spot)?.id?.takeIf { interactive }
+        val hoveredRoomId = (hovered as? Target.Room)?.id?.takeIf { interactive }
 
         val px: (Rect) -> Rect = proj::px
         drawRoomShells(house, plan, px, u)
+        hoveredRoomId?.let { roomId ->
+            val r = proj.px(plan.roomRect(roomId))
+            drawRect(Highlight.copy(alpha = 0.14f), r.topLeft, r.size)
+        }
         plan.decor.filter { it.decor.onFloor }.forEach { drawDecor(it.decor, proj.px(it.rect), u) }
         drawWallCaps(house, plan, px, u, frontDoorRoomId = "hall")
+        hoveredRoomId?.let { roomId ->
+            val r = proj.px(plan.roomRect(roomId)).deflate(FloorPlan.WALL * u)
+            drawRect(Highlight, r.topLeft, r.size, style = Stroke(0.8f * u))
+        }
 
         val kodeePoppedOut = kodeeMood == KodeeMood.SURPRISED || kodeeMood == KodeeMood.EXCITED
-        val previewSpotId = hoveredSpotId.takeIf { canHide && it != hiddenSpotId }
 
         // Painter's order: things lower on screen are in front.
         val items = plan.spotLayouts.map { it.rect.bottom to it } + plan.decor.filterNot { it.decor.onFloor }.map { it.rect.bottom to it }
@@ -113,10 +140,10 @@ fun HouseView(
             when (item) {
                 is SpotLayout -> {
                     // A hiding Kodee is drawn just before its furniture, so it peeks out from behind it.
-                    if (item.spotId == hiddenSpotId && !kodeePoppedOut) drawKodee(item, plan, kodeeMood, proj, alpha = 1f)
-                    if (item.spotId == previewSpotId) drawKodee(item, plan, KodeeMood.WELCOMING, proj, alpha = 0.7f)
+                    if (item.spotId == kodeeSpotId && !kodeePoppedOut) drawKodee(item, plan, kodeeMood, proj, alpha = 1f)
+                    if (item.spotId == previewSpotId && previewSpotId != kodeeSpotId) drawKodee(item, plan, KodeeMood.WELCOMING, proj, alpha = 0.7f)
                     val r = proj.px(item.rect)
-                    if (item.spotId == hoveredSpotId && canHide) {
+                    if (item.spotId == hoveredSpotId) {
                         drawRoundRect(Highlight.copy(alpha = 0.35f), r.inflate(2f * u).topLeft, r.inflate(2f * u).size, CornerRadius(3f * u))
                     }
                     drawFurniture(item.furniture, r, u)
@@ -142,19 +169,18 @@ fun HouseView(
             }
         }
 
-
         val feet = proj.px(director.position.value) + Offset(0f, DETECTIVE_HEIGHT * u * 0.25f)
         drawDetective(feet, DETECTIVE_HEIGHT * u, director.pose, director.facingLeft, phase)
         // Once found, Kodee pops out in front of the detective.
-        if (kodeePoppedOut) hiddenSpotId?.let { drawKodee(plan.layout(it), plan, kodeeMood, proj, alpha = 1f) }
+        if (kodeePoppedOut) kodeeSpotId?.let { drawKodee(plan.layout(it), plan, kodeeMood, proj, alpha = 1f) }
         director.bubble?.let { drawBubble(it, anchor = feet - Offset(0f, DETECTIVE_HEIGHT * u), u, textMeasurer) }
 
-        if (canHide && hoveredSpotId != null) {
-            val spot = house.spot(hoveredSpotId)!!
-            val text = if (hoveredSpotId == hiddenSpotId) "Kodee is hiding here 🤫"
-            else "Kodee will hide ${spot.name.replaceFirstChar(Char::lowercase)} · click to hide"
-            val r = proj.px(plan.layout(hoveredSpotId).rect)
-            drawBubble(Bubble(text), anchor = Offset(r.center.x, r.top - 1f * u), u, textMeasurer)
+        if (tooltip != null && hovered != null && interactive) {
+            val anchor = when (hovered) {
+                is Target.Spot -> proj.px(plan.layout(hovered.id).rect).let { Offset(it.center.x, it.top - 1f * u) }
+                is Target.Room -> proj.px(plan.roomRect(hovered.id)).let { Offset(it.center.x, it.top + 24f * u) }
+            }
+            drawBubble(Bubble(tooltip), anchor = anchor, u, textMeasurer)
         }
     }
 }

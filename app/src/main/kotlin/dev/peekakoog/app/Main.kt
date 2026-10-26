@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,17 +44,20 @@ import androidx.compose.ui.window.rememberWindowState
 import dev.peekakoog.agent.Level
 import dev.peekakoog.agent.Llm
 import dev.peekakoog.agent.SeekResult
+import dev.peekakoog.agent.baselineSeek
 import dev.peekakoog.agent.seek
 import dev.peekakoog.engine.Game
 import dev.peekakoog.engine.GameEvent
 import dev.peekakoog.engine.House
 import dev.peekakoog.engine.Houses
+import dev.peekakoog.engine.Status
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.random.Random
 
-private const val START_ROOM = "hall"
+internal const val START_ROOM = "hall"
 
 fun main() = application {
     Window(
@@ -68,21 +72,47 @@ fun main() = application {
     }
 }
 
+/** Who is seeking Kodee: you, or one of the seekers in the agent module. */
+private sealed interface Player {
+    val title: String
+    val idea: String
+
+    data object Human : Player {
+        override val title = "You · Human player"
+        override val idea = "The engine hides Kodee. Click a room to walk there, click furniture to peek, " +
+            "and listen for hints. Every click is one of the agent's tools."
+    }
+
+    data class Agent(val level: Level) : Player {
+        override val title = level.title
+        override val idea = level.idea
+    }
+}
+
+private val Players: List<Player> = listOf(Player.Human) + Level.entries.map { Player.Agent(it) }
+
+/** The whole game screen. [random] decides where the engine hides Kodee in your games. */
 @Composable
-private fun PeekAKoogScreen(house: House) {
+internal fun PeekAKoogScreen(house: House, random: Random = Random.Default) {
     val llm = remember { Llm.fromEnvironment() }
     val plan = remember { FloorPlan.cozy(house) }
     val director = remember { Director(house, plan, START_ROOM) }
     val scope = rememberCoroutineScope()
 
-    var level by remember { mutableStateOf(Level.PROMPT_ONLY) }
+    var player by remember { mutableStateOf<Player>(Player.Human) }
+    var hovered by remember { mutableStateOf<Target?>(null) }
+
+    // Agent games: you hide Kodee, the seeker searches.
     var hiddenSpotId by remember { mutableStateOf<String?>(null) }
-    var hoveredSpotId by remember { mutableStateOf<String?>(null) }
     var running by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<SeekResult?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // Events the agent produced but the detective hasn't acted out yet.
+    // Human games: the engine hides Kodee, you search.
+    var humanGame by remember { mutableStateOf<Game?>(null) }
+    var revealed by remember { mutableStateOf(false) }
+
+    // Events the seeker produced but the detective hasn't acted out yet.
     val queue = remember { Channel<GameEvent>(Channel.UNLIMITED) }
     var pending by remember { mutableIntStateOf(0) }
     // Events already acted out, in order. This is what the audience has seen.
@@ -96,17 +126,45 @@ private fun PeekAKoogScreen(house: House) {
         }
     }
 
-    val started = running || result != null || error != null
-    val finished = started && !running && pending == 0
+    val busy = pending > 0
+    val movesSpent = shown.count { it is GameEvent.Moved || it is GameEvent.Peeked || it is GameEvent.Listened }
     val peeked = shown.filterIsInstance<GameEvent.Peeked>().map { it.spotId }.toSet()
+
+    val agentStarted = running || result != null || error != null
+    val agentFinished = agentStarted && !running && !busy
+    val game = humanGame
+    val humanOver = game != null && game.status != Status.SEEKING && !busy
+    val canAct = game != null && game.status == Status.SEEKING && !busy
+
+    val kodeeSpotId = when (player) {
+        Player.Human -> game?.hiddenSpotId?.takeIf { revealed || humanOver || director.foundSpotId != null }
+        is Player.Agent -> hiddenSpotId
+    }
     val kodeeMood = when {
         director.foundSpotId != null -> KodeeMood.SURPRISED
-        finished -> KodeeMood.EXCITED
+        agentFinished || humanOver -> KodeeMood.EXCITED
         else -> KodeeMood.NAUGHTY
     }
 
-    fun start() {
+    fun clearBoard() = scope.launch {
+        director.reset()
+        shown.clear()
+    }
+
+    fun choose(candidate: Player) {
+        if (busy || running) return
+        player = candidate
+        humanGame = null
+        revealed = false
+        hiddenSpotId = null
+        result = null
+        error = null
+        clearBoard()
+    }
+
+    fun startAgent() {
         val spot = hiddenSpotId ?: return
+        val level = (player as? Player.Agent)?.level ?: return
         result = null
         error = null
         running = true
@@ -114,14 +172,14 @@ private fun PeekAKoogScreen(house: House) {
             director.reset()
             shown.clear()
             try {
-                val game = Game(house, spot, START_ROOM) { event ->
+                val agentGame = Game(house, spot, START_ROOM) { event ->
                     // Called from the agent's thread; hop to the UI thread, keeping the order.
                     scope.launch(Dispatchers.Main) {
                         pending++
                         queue.send(event)
                     }
                 }
-                result = withContext(Dispatchers.IO) { seek(level, game, llm) }
+                result = withContext(Dispatchers.IO) { seek(level, agentGame, llm) }
             } catch (e: Exception) {
                 error = e.message ?: e::class.simpleName
             } finally {
@@ -130,13 +188,56 @@ private fun PeekAKoogScreen(house: House) {
         }
     }
 
-    fun playAgain() {
-        scope.launch {
-            director.reset()
-            shown.clear()
-            result = null
-            error = null
-            hiddenSpotId = null
+    fun newHumanGame() {
+        if (busy) return
+        revealed = false
+        clearBoard()
+        // Clicks run on the UI thread, so events can go straight to the queue.
+        humanGame = Game(house, house.spots.random(random).id, START_ROOM) { event ->
+            pending++
+            queue.trySend(event)
+        }
+    }
+
+    /** Your click, turned into the same engine calls the agent's tools make. */
+    fun humanAct(target: Target) {
+        val g = humanGame ?: return
+        if (!canAct) return
+        val roomId = when (target) {
+            is Target.Spot -> house.spot(target.id)!!.roomId
+            is Target.Room -> target.id
+        }
+        for (next in house.path(g.currentRoomId, roomId)) {
+            g.move(next)
+            if (g.status != Status.SEEKING) return
+        }
+        if (target is Target.Spot) g.peek(target.id)
+    }
+
+    fun humanTooltip(target: Target): String? {
+        val g = humanGame ?: return null
+        val roomId = when (target) {
+            is Target.Spot -> house.spot(target.id)!!.roomId
+            is Target.Room -> target.id
+        }
+        val steps = house.path(g.currentRoomId, roomId).size
+        val roomName = house.room(roomId)!!.name.replaceFirstChar(Char::lowercase)
+        return when (target) {
+            is Target.Spot -> {
+                val where = house.spot(target.id)!!.name.replaceFirstChar(Char::lowercase)
+                if (steps == 0) "Peek $where · 1 move" else "Walk to the $roomName and peek $where · ${steps + 1} moves"
+            }
+            is Target.Room -> if (steps == 0) null else "Walk to the $roomName · ${moves(steps)}"
+        }
+    }
+
+    val tooltip: String? = hovered?.let { target ->
+        when (player) {
+            Player.Human -> humanTooltip(target)
+            is Player.Agent -> (target as? Target.Spot)?.let { spot ->
+                if (spot.id == hiddenSpotId) "Kodee is hiding here 🤫"
+                else "Kodee will hide ${house.spot(spot.id)!!.name.replaceFirstChar(Char::lowercase)} · click to hide"
+            }
         }
     }
 
@@ -147,10 +248,17 @@ private fun PeekAKoogScreen(house: House) {
                 Text("Peek-a-Koog", fontSize = 28.sp, fontWeight = FontWeight.Bold)
             }
             Text(
-                when {
-                    started -> "Koog the detective is looking for Kodee…"
-                    hiddenSpotId == null -> "Hover over the furniture and click to hide Kodee."
-                    else -> "Kodee is hidden. Pick a level and let Koog seek!"
+                when (player) {
+                    Player.Human -> when {
+                        game == null -> "Press New game: the engine hides Kodee and you have to find it."
+                        humanOver -> "Game over. Start a new one whenever you like."
+                        else -> "Find Kodee! Click a room to walk, click furniture to peek, or listen for a hint."
+                    }
+                    is Player.Agent -> when {
+                        agentStarted -> "Koog the detective is looking for Kodee…"
+                        hiddenSpotId == null -> "Hover over the furniture and click to hide Kodee."
+                        else -> "Kodee is hidden. Let Koog seek!"
+                    }
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -158,14 +266,27 @@ private fun PeekAKoogScreen(house: House) {
                 house = house,
                 plan = plan,
                 director = director,
-                hiddenSpotId = hiddenSpotId,
-                hoveredSpotId = hoveredSpotId,
-                peeked = peeked,
+                kodeeSpotId = kodeeSpotId,
                 kodeeMood = kodeeMood,
-                canHide = !started,
-                onHover = { hoveredSpotId = it },
-                onHide = { hiddenSpotId = it },
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                peeked = peeked,
+                previewSpotId = (hovered as? Target.Spot)?.id?.takeIf { player is Player.Agent && !agentStarted },
+                hovered = hovered,
+                tooltip = tooltip,
+                interactive = when (player) {
+                    Player.Human -> canAct
+                    is Player.Agent -> !agentStarted
+                },
+                onHover = { target ->
+                    // While hiding, only furniture can be pointed at.
+                    hovered = if (player is Player.Agent) target as? Target.Spot else target
+                },
+                onClick = { target ->
+                    when (player) {
+                        Player.Human -> humanAct(target)
+                        is Player.Agent -> (target as? Target.Spot)?.let { hiddenSpotId = it.id }
+                    }
+                },
+                modifier = Modifier.weight(1f).fillMaxWidth().testTag("house"),
             )
             Text(
                 "Kodee by JetBrains s.r.o. is licensed under CC BY 4.0",
@@ -173,27 +294,81 @@ private fun PeekAKoogScreen(house: House) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Level", fontWeight = FontWeight.SemiBold)
-            Level.entries.forEach { candidate ->
+        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Who seeks?", fontWeight = FontWeight.SemiBold)
+            Players.forEach { candidate ->
                 FilterChip(
-                    selected = candidate == level,
-                    onClick = { if (!started) level = candidate },
+                    selected = candidate == player,
+                    onClick = { choose(candidate) },
                     label = { Text(candidate.title) },
                 )
             }
-            Text(level.idea, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("LLM: ${llm.label}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (finished) {
-                OutlinedButton(onClick = ::playAgain) { Text("Play again") }
-            } else {
-                Button(onClick = ::start, enabled = hiddenSpotId != null && !started) {
-                    Text(if (started) "Seeking…" else "Start seeking")
+            Text(player.idea, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            when (val current = player) {
+                Player.Human -> {
+                    if (game == null || humanOver) {
+                        Button(onClick = ::newHumanGame, enabled = !busy) { Text("New game") }
+                    }
+                    if (game != null && !humanOver) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { humanGame?.listen() }, enabled = canAct) { Text("👂 Listen · 1 move") }
+                            OutlinedButton(onClick = { revealed = !revealed }) {
+                                Text(if (revealed) "🙈 Hide Kodee" else "👁 Show Kodee")
+                            }
+                        }
+                    }
+                    if (game != null) {
+                        Text(
+                            "Moves left: ${game.moveBudget - movesSpent} of ${game.moveBudget}",
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                is Player.Agent -> {
+                    if (current.level != Level.BASELINE) {
+                        Text("LLM: ${llm.label}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (agentFinished) {
+                        OutlinedButton(onClick = { choose(current) }) { Text("Play again") }
+                    } else {
+                        Button(onClick = ::startAgent, enabled = hiddenSpotId != null && !agentStarted) {
+                            Text(if (agentStarted) "Seeking…" else "Start seeking")
+                        }
+                    }
                 }
             }
+
             EventLog(house, shown, Modifier.weight(1f))
-            if (finished) result?.let { Verdict(it) }
+            if (humanOver && game != null) HumanVerdict(house, game, movesSpent)
+            if (agentFinished) result?.let { Verdict(it) }
             error?.let { Text("Error: $it", color = MaterialTheme.colorScheme.error) }
+        }
+    }
+}
+
+private fun moves(n: Int) = if (n == 1) "1 move" else "$n moves"
+
+@Composable
+private fun HumanVerdict(house: House, game: Game, movesSpent: Int) {
+    val where = house.spot(game.hiddenSpotId)!!.name.replaceFirstChar(Char::lowercase)
+    // How many moves the plain-Kotlin baseline needs for the same spot.
+    val baseline = remember(game) {
+        Game(house, game.hiddenSpotId, START_ROOM).also { baselineSeek(it) }.let { it.moveBudget - it.movesLeft }
+    }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            if (game.status == Status.FOUND) {
+                Text("🎉 You found Kodee in ${moves(movesSpent)}!", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            } else {
+                Text("😵 Out of moves!", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            }
+            Text("Kodee was $where.", fontSize = 13.sp)
+            Text(
+                "The no-AI baseline needs ${moves(baseline)} for this spot.",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

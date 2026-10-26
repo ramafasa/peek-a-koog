@@ -73,6 +73,8 @@ class FloorPlan(
     /** Is a doorway on a vertical wall (rooms side by side)? */
     fun isVerticalDoor(a: String, b: String): Boolean = house.room(a)!!.row == house.room(b)!!.row
 
+    fun roomAt(point: Offset): String? = house.rooms.firstOrNull { roomRect(it).contains(point) }?.id
+
     fun spotAt(point: Offset): String? =
         layouts.values.filter { it.rect.inflate(HIT_SLOP).contains(point) }.maxByOrNull { it.rect.bottom }?.spotId
 

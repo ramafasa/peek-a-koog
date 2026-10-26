@@ -39,6 +39,27 @@ class House(
     fun spotsIn(roomId: String): List<Spot> = spots.filter { it.roomId == roomId }
     fun doorsFrom(roomId: String): Set<String> = neighbours[roomId].orEmpty()
 
+    /** Rooms to walk through, door by door, from [from] to [to] (excluding [from]). Empty when already there. */
+    fun path(from: String, to: String): List<String> {
+        val previous = mutableMapOf(from to from)
+        val queue = ArrayDeque(listOf(from))
+        while (queue.isNotEmpty()) {
+            val room = queue.removeFirst()
+            if (room == to) break
+            doorsFrom(room).sorted().forEach { next ->
+                if (next !in previous) {
+                    previous[next] = room
+                    queue += next
+                }
+            }
+        }
+        if (to !in previous) return emptyList()
+        return generateSequence(to) { room -> previous[room]?.takeIf { room != from } }
+            .takeWhile { it != from }
+            .toList()
+            .reversed()
+    }
+
     /** Number of doors between two rooms (breadth-first search). */
     fun distance(from: String, to: String): Int {
         if (from == to) return 0

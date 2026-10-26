@@ -25,6 +25,7 @@ the seeker found it. The LLM only chooses what to do next. A model that *says* i
 
 | Level | Idea | Expected failure |
 |---|---|---|
+| You · Human player | The engine hides Kodee and you search: click a room to walk, furniture to peek, and **Listen** for hints. Same engine calls as the agent's tools. Use it to explain the rules on stage. | Yours 🙂 |
 | Baseline · Plain Kotlin | A hand-written search, no AI. Runs without an API key. | None: this is the bar every agent has to beat |
 | 0 · Just a prompt | No tools at all | Claims to have found the toy without looking anywhere |
 | 1 · Tools, in the dark | Tools + Koog's default strategy | Does odd things and you can't see why |
@@ -53,6 +54,7 @@ export ANTHROPIC_API_KEY=...
 
 Hover over the furniture and click to hide Kodee, pick a level and press **Start seeking**.
 The Baseline level needs no API key, so it is a quick way to see the whole show.
+In **You · Human player** mode press **New game** and find Kodee yourself; **Show Kodee** reveals where it is hiding.
 
 ```bash
 ./gradlew test   # engine rules, agent tests with a mocked LLM, and PNG snapshots of the house in app/build/snapshots

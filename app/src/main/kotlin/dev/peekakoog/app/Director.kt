@@ -116,8 +116,7 @@ class Director(private val house: House, private val plan: FloorPlan, private va
 
     /** Walks door by door along a shortest route to [target]. */
     private suspend fun walkToRoom(target: String) {
-        while (roomId != target) {
-            val next = house.doorsFrom(roomId).minBy { house.distance(it, target) }
+        house.path(roomId, target).forEach { next ->
             walk(listOf(plan.roomCenter(roomId), plan.door(roomId, next), plan.roomCenter(next)))
             roomId = next
         }

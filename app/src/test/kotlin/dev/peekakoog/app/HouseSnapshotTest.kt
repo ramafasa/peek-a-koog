@@ -30,7 +30,17 @@ class HouseSnapshotTest {
         canHide: Boolean = false,
     ) {
         ImageComposeScene(width = 1400, height = 800) {
-            HouseView(house, plan, director, hidden, hovered, peeked, mood, canHide, {}, {}, Modifier.fillMaxSize())
+            HouseView(
+                house, plan, director,
+                kodeeSpotId = hidden,
+                kodeeMood = mood,
+                peeked = peeked,
+                modifier = Modifier.fillMaxSize(),
+                previewSpotId = hovered.takeIf { canHide },
+                hovered = hovered?.let { Target.Spot(it) },
+                tooltip = hovered?.let { "Kodee will hide ${house.spot(it)!!.name.replaceFirstChar(Char::lowercase)} · click to hide" },
+                interactive = canHide,
+            )
         }.use { scene ->
             val image = scene.render()
             File(outDir, "$name.png").writeBytes(image.encodeToData(EncodedImageFormat.PNG)!!.bytes)

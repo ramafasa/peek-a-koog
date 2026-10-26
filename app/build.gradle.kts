@@ -24,6 +24,8 @@ compose.desktop {
 
 dependencies {
     testImplementation(kotlin("test"))
+    @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+    testImplementation(compose.uiTest)
 }
 
 tasks.test {
